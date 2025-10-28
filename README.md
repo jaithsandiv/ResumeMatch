@@ -308,5 +308,3 @@ This project is licensed under the **MIT License**.
 ---
 
 ### ⚡ “Bridging AI and human potential — one skill at a time.”
-
-```
