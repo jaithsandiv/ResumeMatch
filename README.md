@@ -1,193 +1,312 @@
-# Modular LLM Framework for Responsible Retrieval-Augmented Job Matching
+# 🧠 ResumeMatch — Skill Gap & Job Fit Assistant  
+### 🚀 Powered by FastAPI, Next.js, MongoDB & Graph-RAG AI
 
-**A reusable framework that combines semantic retrieval (FAISS), an optional domain Knowledge Graph (Neo4j), and controlled LLM reasoning to produce grounded job-matching outputs and actionable, realistic counterfactual resume suggestions.**
-
-This repo is a starter framework for a final-year project that shows how to build a practical, auditable LLM + RAG pipeline for hiring support.
-
----
-
-## Table of contents
-
-1. [Project overview (plain English)](#project-overview-plain-english)
-2. [Features](#features)
-3. [Architecture (high level)](#architecture-high-level)
-4. [Quickstart (dev)](#quickstart-dev)
-5. [Environment & configuration](#environment--configuration)
-6. [Run with Docker (recommended for demo)](#run-with-docker-recommended-for-demo)
-7. [API & example requests](#api--example-requests)
-8. [Prompts & LLM orchestration](#prompts--llm-orchestration)
-9. [Evaluation & experiments](#evaluation--experiments)
-10. [Ethics, safety & PII handling](#ethics-safety--pii-handling)
-11. [Project structure](#project-structure)
-12. [Contributing](#contributing)
-13. [License & contact](#license--contact)
-14. [Useful references](#useful-references)
+ResumeMatch AI is an intelligent, explainable recruitment and skill-improvement platform.  
+It goes beyond simple resume–JD keyword matching — analyzing candidate skills, building a **Graph-RAG knowledge graph**, and providing **actionable AI feedback** on how applicants can **improve their real skills** to better fit target roles.
 
 ---
 
-## Project overview (plain English)
+## 🌟 Key Features
 
-Give the system a job description and resumes (PDF/DOCX). The system:
+### 👩‍💼 For Candidates
+- Upload resumes (PDF/DOCX) and apply to open jobs.  
+- AI-driven skill extraction and personalized improvement suggestions.  
+- Real-time **match score** visualization between their resume and job roles.  
+- Understand missing or weak skills, with guidance like:
+  > “Improve your Python proficiency by completing projects using FastAPI.”
 
-* extracts and normalizes resume text (OCR fallback for scanned docs),
-* builds/queries a semantic index (Sentence-Transformers + FAISS),
-* Consults a small Knowledge Graph (Neo4j) to bridge related skills/roles,
-* uses an LLM (via controlled prompts) to produce a grounded match summary and concise, realistic counterfactual suggestions, showing the **expected improvement** in match score,
-* presents ranked results + evidence + suggested edits in a UI and via an API.
+### 🧑‍💼 For Recruiters / Admins
+- Post and manage job descriptions.  
+- View applicants with AI-computed match scores.  
+- Understand candidate fit through **explainable graphs** and **counterfactual “what-if” analysis**.  
+- Export applicant data and performance insights.
 
-The system is explicitly **a hiring aid** — humans make decisions. Counterfactual suggestions are **suggestions only** and limited to verifiable, realistic actions.
-
----
-
-## Features
-
-* Resume ingestion: PDF/DOCX parsing + Tesseract OCR fallback (for scans)
-* Semantic retrieval: Sentence-Transformers + FAISS index for fast JD→resume retrieval
-* Knowledge Graph (Neo4j): Roles, Skills, Tools + relations (synonyms, transferable skills) to produce KG bridging evidence
-* LLM orchestration: prompt templates that combine retrieved snippets + KG facts to produce match summaries, rationales, and counterfactual suggestions
-* Counterfactual generator: discrete edit search (plausible edits) + LLM polishing (clearly labeled) with Δscore estimation
-* Simple FastAPI backend + Streamlit demo UI (Dockerized)
-* Evaluation scripts for IR metrics and a small human-study template
-* Ethics & fairness checks and PII redaction utilities
+### 🤖 AI Modules
+- **Skill Extraction:** Uses GPT-4-Turbo to identify relevant technical and soft skills from text.  
+- **Graph-RAG Matching:** Builds a knowledge graph connecting applicant skills to job requirements.  
+- **Actionable Explainability:** Suggests *how* skill improvement actions can raise match scores.  
+- **Counterfactual Analysis:** Estimates how much improving certain skills would affect fit (e.g., +15% if Python projects increase).
 
 ---
 
-## Architecture (high level)
+## 🏗️ Tech Stack
+
+| Layer | Technology |
+|-------|-------------|
+| **Frontend** | Next.js (React + TailwindCSS) |
+| **Backend** | FastAPI (Python 3.11) |
+| **Database** | MongoDB (Atlas) |
+| **AI / ML** | OpenAI GPT-4-Turbo / GPT-5, NetworkX, Chroma / FAISS |
+| **File Handling** | AWS S3 (production) / Local `/uploads` (dev) |
+| **Authentication** | JWT (JSON Web Tokens) |
+| **Deployment** | Vercel (Frontend) + Render/Railway (Backend) |
+
+---
+
+## 🧩 Core Architecture
 
 ```
-[Uploader / UI] -> [Parser (pdf/docx, OCR)] -> [Indexer (embeddings -> FAISS)] 
-      \                                           |
-       -> [KG connector (Neo4j)]                   v
-            \--------------------------------> [RAG Orchestrator (LLM)]
-                                               -> [Ranker (embeddings + KG + classifier)]
-                                               -> [Counterfactual generator]
-                                               -> [API / UI]
-```
 
-* Retriever returns top-k evidence snippets.
-* KG connector returns short paths linking resume skills to JD requirements.
-* Orchestrator feeds both into LLM prompt templates for grounded reasoning.
+Frontend (Next.js)
+├── Job feed & search
+├── Resume upload
+├── Profile dashboard
+├── Skill gap insights page
+└── Admin panel
 
----
+Backend (FastAPI)
+├── Auth & user management
+├── Job / Resume / Application APIs
+├── AI services (Skill extraction, RAG graph, LLM suggestions)
+├── Counterfactual explainability
+└── MongoDB integration
 
-## Quickstart (dev)
+AI Engine
+├── Extract candidate & job skills
+├── Build skill knowledge graph (Graph-RAG)
+├── Compute semantic similarity & match score
+├── Generate skill improvement recommendations
+└── Explain “what-if” improvements
 
-### Prereqs
-
-* Python 3.10+
-* git, Docker (optional but recommended)
-* (Optional) Neo4j desktop / Docker if enabling KG
-
----
-
-## Prompts & LLM orchestration (guidelines + example)
-
-**Guidelines**
-
-* Always include evidence snippets and KG facts in the prompt.
-* Use concise system messages to constrain the model (no hallucinations, stick to evidence).
-* Post-validate LLM outputs (check suggested edits for plausibility).
-
-**Example match-summary prompt**
-
-```
-System: You are a concise assistant. Only use the provided evidence and KG facts. Do not make claims not in evidence.
-
-User:
-Job description: {JD}
-Evidence snippets: {snippets}
-KG facts: {kg_facts}
-
-Produce:
-1) a 1-sentence match summary
-2) 3 supporting evidence bullets (point to snippets)
-3) a confidence score in [0-1]
-4) up to 3 concise candidate suggestions (<=20 words each) that are realistic and verifiable.
-```
-
-**Post-validation**
-
-* Ensure suggestions contain only allowed action types (add project, take course, list certification) and do not assert unverifiable years/achievements.
-* Label suggested text clearly: `Suggested — verify before use`.
-
----
-
-## Counterfactual generation (brief)
-
-* **Discrete edits** are generated first (e.g., add-skill, add-project, bump-experience-by-1-year bounded).
-* Each edit is applied to a copy of candidate features and re-scored by the ranker to compute `Δscore`.
-* Top edits are optionally polished into human-friendly bullets by the LLM and presented with Δscore and a verification note.
-
----
-
-## Evaluation & experiments
-
-* **IR metrics**: Precision\@10, Recall\@10, NDCG\@k, MAP. (Scripts in `eval/compute_metrics.py`.)
-* **Ablation study**: Evaluate three configurations:
-
-  1. FAISS baseline (semantic retrieval only)
-  2. FAISS + LLM RAG
-  3. FAISS + LLM RAG + KG bridging
-* **Human study**: small survey (8–12 recruiters/peers) to rate:
-
-  * usefulness of explanations (1–5),
-  * realism and usefulness of counterfactuals (1–5).
-* **Fairness checks**: run group-wise FNR/FPR if group labels exist; document limitations.
-
----
-
-## Ethics, safety & PII handling
-
-**This system is a decision-aid only.** Do not use outputs to make automated rejections.
-
-Key safeguards:
-
-* **PII redaction**: scripts to pseudonymize names/emails before sharing artifacts (`scripts/pseudonymize.py`).
-* **Counterfactual constraints**: suggestions limited to verifiable actions (courses, short projects, certificates). No fabricated claims.
-* **Transparency**: present evidence snippets + KG paths used to make decisions; log model outputs and inputs for audit.
-* **Fairness audit**: compute disparity metrics and include findings in the final report.
-* **Human-in-the-loop**: include an override and manual review step in any workflow.
-
-Document all limitations in `ETHICS.md`.
-
----
-
-## Project structure
-
-```
-/
-├─ backend/
-│  ├─ app/
-│  │  ├─ main.py
-│  │  ├─ api/
-│  │  ├─ parsers/
-│  │  ├─ retriever/
-│  │  ├─ kg_connector/
-│  │  ├─ llm_orchestrator/
-│  │  └─ ranker.py
-├─ frontend/
-│  └─ streamlit_app.py
-├─ data/
-│  ├─ sample_resumes/
-│  └─ kg_seed.csv
-├─ scripts/
-│  ├─ build_faiss_index.py
-│  └─ pseudonymize.py
-├─ eval/
-│  ├─ compute_metrics.py
-│  └─ human_survey_template.md
-├─ docker-compose.yml
-├─ requirements.txt
-├─ README.md
-└─ ETHICS.md
 ```
 
 ---
 
-## Useful references
+## 📁 Folder Structure
 
-* Sentence-Transformers: [https://www.sbert.net/](https://www.sbert.net/)
-* FAISS: [https://github.com/facebookresearch/faiss](https://github.com/facebookresearch/faiss)
-* Neo4j: [https://neo4j.com/](https://neo4j.com/)
-* Hugging Face Transformers: [https://huggingface.co/transformers/](https://huggingface.co/transformers/)
-* SHAP (explainability): [https://github.com/slundberg/shap](https://github.com/slundberg/shap)
+### Frontend
+```
+
+/frontend
+├── pages/
+│   ├── index.js
+│   ├── jobs/[id].js
+│   ├── auth/{login,register}.js
+│   ├── profile/index.js
+│   ├── admin/{index,jobs-new,jobs-[id]}.js
+│   └── insights/[appId].js
+├── components/
+│   ├── JobCard.jsx
+│   ├── ResumeUpload.jsx
+│   ├── MatchInsights.jsx
+│   └── SkillGraphView.jsx
+└── lib/
+├── api.js
+└── auth.js
+
+```
+
+### Backend
+```
+
+/backend
+├── app/
+│   ├── main.py
+│   ├── config.py
+│   ├── database.py
+│   ├── models/
+│   │   ├── user_model.py
+│   │   ├── job_model.py
+│   │   ├── resume_model.py
+│   │   ├── application_model.py
+│   │   └── match_result_model.py
+│   ├── routes/
+│   │   ├── auth_routes.py
+│   │   ├── job_routes.py
+│   │   ├── resume_routes.py
+│   │   ├── application_routes.py
+│   │   └── ai_routes.py
+│   ├── services/
+│   │   ├── resume_parser.py
+│   │   ├── skill_extractor.py
+│   │   ├── graph_rag_engine.py
+│   │   ├── suggestor.py
+│   │   └── counterfactual.py
+│   ├── schemas/
+│   └── utils/
+│       ├── jwt_utils.py
+│       ├── file_utils.py
+│       └── embeddings.py
+└── requirements.txt
+
+````
+
+---
+
+## ⚙️ Installation & Setup
+
+### 1️⃣ Clone the repository
+```bash
+git clone https://github.com/jaithsandiv/ResumeMatch.git
+cd ResumeMatch
+````
+
+### 2️⃣ Backend Setup
+
+```bash
+cd backend
+python -m venv venv
+source venv/bin/activate      # (Windows: venv\Scripts\activate)
+pip install -r requirements.txt
+```
+
+### 3️⃣ Environment Variables (`.env`)
+
+```
+MONGO_URI=mongodb+srv://<username>:<password>@cluster.mongodb.net/resumematch
+JWT_SECRET=your_secret_key
+OPENAI_API_KEY=your_openai_key
+UPLOAD_DIR=./uploads
+S3_BUCKET_NAME=your_bucket_name
+S3_ACCESS_KEY=your_access_key
+S3_SECRET_KEY=your_secret_key
+```
+
+### 4️⃣ Run FastAPI Server
+
+```bash
+uvicorn app.main:app --reload
+```
+
+Docs available at 👉 [http://localhost:8000/docs](http://localhost:8000/docs)
+
+### 5️⃣ Frontend Setup
+
+```bash
+cd ../frontend
+npm install
+npm run dev
+```
+
+Frontend runs at 👉 [http://localhost:3000](http://localhost:3000)
+
+---
+
+## 🔑 API Overview
+
+| Endpoint                   | Method             | Description                          |
+| -------------------------- | ------------------ | ------------------------------------ |
+| `/auth/register`           | POST               | Register a new user                  |
+| `/auth/login`              | POST               | Login and get JWT                    |
+| `/jobs`                    | GET / POST         | List or create jobs                  |
+| `/jobs/{id}`               | GET / PUT / DELETE | Job details & updates                |
+| `/resumes/upload`          | POST               | Upload a resume (PDF/DOCX)           |
+| `/applications`            | POST               | Apply for a job                      |
+| `/ai/skill-analysis`       | POST               | Extract skills from text             |
+| `/ai/match-preview`        | POST               | Compute match score & missing skills |
+| `/ai/suggest-improvements` | POST               | Generate skill improvement actions   |
+| `/ai/counterfactual`       | POST               | “What-if” analysis for skill growth  |
+
+---
+
+## 🧠 Example AI Flow
+
+1. Candidate uploads resume → AI extracts skills.
+2. Recruiter posts job → job skills extracted.
+3. When applying:
+
+   * Graph-RAG connects resume skills ↔ job requirements.
+   * Match score computed.
+   * Missing skills identified.
+   * LLM suggests **improvement actions** (not resume edits).
+4. Candidate sees:
+
+   * **Score:** 76% match
+   * **Missing Skills:** `FastAPI`, `Docker`, `SQL`
+   * **Suggestions:**
+
+     * “Build a REST API with FastAPI.”
+     * “Deploy a project using Docker Compose.”
+
+---
+
+## 🔬 Development Timeline (20 Weeks)
+
+| Week  | Milestone                                |
+| ----- | ---------------------------------------- |
+| 1–2   | Setup FastAPI, MongoDB, Next.js frontend |
+| 3–4   | Auth system + CRUD APIs                  |
+| 5–6   | Resume upload & text parsing             |
+| 7–9   | Skill extraction (OpenAI)                |
+| 10–12 | Graph-RAG skill graph & matching         |
+| 13–15 | LLM skill improvement suggestions        |
+| 16–17 | Counterfactual explainability            |
+| 18–19 | Frontend insights dashboard              |
+| 20    | QA, testing, documentation, deployment   |
+
+---
+
+## 🔒 Security & Privacy
+
+* JWT-based authentication for both users & admins.
+* Strict role-based authorization for admin endpoints.
+* File uploads validated for type and size.
+* OpenAI prompts anonymized — no personal info sent.
+* HTTPS recommended for production deployment.
+
+---
+
+## 🧩 Future Enhancements
+
+* 🧭 Skill Graph Visualization (Neo4j or D3.js).
+* 🧾 Recruiter feedback → adaptive learning for AI.
+* 🎯 Personalized learning path integration (Coursera / Udemy APIs).
+* 🧮 Custom fine-tuned model for skill matching.
+
+---
+
+## ☁️ Deployment
+
+### Frontend (Vercel)
+
+* Connect `/frontend` to Vercel.
+* Add environment variables under project settings.
+
+### Backend (Render / Railway)
+
+* Deploy `/backend` folder.
+* Set environment variables.
+* Expose service at `https://api.resumematch.com`.
+
+### Database
+
+* Use MongoDB Atlas (free tier).
+* Whitelist backend IP or set to `0.0.0.0/0` (dev only).
+
+---
+
+## 🧑‍💻 Contributing
+
+Contributions are welcome!
+If you’d like to fix a bug, add features, or improve documentation:
+
+1. Fork the repo
+2. Create a feature branch
+3. Submit a PR with detailed changes
+
+```bash
+git checkout -b feature/your-feature
+git commit -m "Added new AI skill suggestor"
+git push origin feature/your-feature
+```
+
+---
+
+## 🧾 License
+
+This project is licensed under the **MIT License**.
+
+---
+
+## 💬 Contact
+
+**Developer:** [Your Name]
+**Email:** [jaithsandivhemachandra@gmail.com](mailto:jaithsandivhemachandra@gmail.com)
+**LinkedIn:** [linkedin.com/in/jaith-sandiv-hemachandra](https://linkedin.com/in/jaith-sandiv-hemachandra)
+**GitHub:** [github.com/jaithsandiv](https://github.com/jaithsandiv)
+
+---
+
+### ⚡ “Bridging AI and human potential — one skill at a time.”
+
+```
