@@ -584,6 +584,30 @@ async def n8n_callback(
         payload.resume_id, payload.job_id, payload.match_score,
     )
 
+    # ------------------------------------------------------------------
+    # 1b. Validate that resume and job exist in MongoDB
+    # ------------------------------------------------------------------
+    try:
+        resume_obj_id = ObjectId(payload.resume_id)
+        job_obj_id = ObjectId(payload.job_id)
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid resume_id or job_id format",
+        )
+
+    if not db.resumes.find_one({"_id": resume_obj_id}):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Resume not found: {payload.resume_id}",
+        )
+
+    if not db.jobs.find_one({"_id": job_obj_id}):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Job not found: {payload.job_id}",
+        )
+
     now = datetime.utcnow()
 
     # ------------------------------------------------------------------

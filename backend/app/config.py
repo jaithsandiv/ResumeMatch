@@ -21,3 +21,13 @@ FRONTEND_ORIGIN = os.getenv("FRONTEND_ORIGIN", "http://localhost:3000")
 
 # OpenAI configuration
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+
+# ---------------------------------------------------------------------------
+# Backblaze B2 (S3-compatible) configuration
+# ---------------------------------------------------------------------------
+B2_ENDPOINT = os.getenv("B2_ENDPOINT", "")
+B2_BUCKET_NAME = os.getenv("B2_BUCKET_NAME", "")
+B2_ACCESS_KEY_ID = os.getenv("B2_ACCESS_KEY_ID", "")
+B2_SECRET_ACCESS_KEY = os.getenv("B2_SECRET_ACCESS_KEY", "")
+B2_REGION = os.getenv("B2_REGION", "us-east-005")
+B2_UPLOAD_PREFIX = os.getenv("B2_UPLOAD_PREFIX", "resumes/")
