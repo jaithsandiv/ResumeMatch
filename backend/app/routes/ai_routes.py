@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException, Depends, status
 from app.database import db
 from app.services.graph_rag_engine import SkillGraphRAG
 from app.services.skill_extractor import extract_skills
+from app.services.counterfactual_engine import CounterfactualEngine
 from app.utils.auth_dependencies import get_current_user
 from app.models.match_result import MatchResultDocument, MatchExplainability
 from bson import ObjectId
@@ -308,3 +309,218 @@ async def graph_match_skills(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Graph matching failed. Please try again later."
         )
+
+
+# ---------------------------------------------------------------------------
+# Counterfactual Skill Improvement Analysis
+# ---------------------------------------------------------------------------
+
+class CounterfactualRequest(BaseModel):
+    job_id: str
+    resume_id: str
+
+
+@router.post("/counterfactual-analysis")
+async def counterfactual_analysis(
+    request: CounterfactualRequest,
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Counterfactual Skill Improvement Reasoning.
+
+    Answers the question: "If the candidate improves skill X, how much would
+    their match score increase?"
+
+    The endpoint fetches the latest Graph-RAG match result for the given
+    job/resume pair, runs the CounterfactualEngine to simulate skill additions,
+    persists the results in MongoDB (`counterfactual_results`), and returns
+    counterfactuals ranked by score improvement.
+
+    **Access control**
+    - Admins can request analysis for any resume.
+    - Candidates can only request analysis for their own resumes.
+
+    Args:
+        request: Contains `job_id` and `resume_id`.
+        current_user: Authenticated user from JWT token.
+
+    Returns:
+        Ranked counterfactual improvements with actionable advice.
+
+    Raises:
+        400: Invalid ID format or bad inputs.
+        403: Caller is not the resume owner or an admin.
+        404: Job, resume, or prior match result not found.
+        500: Unexpected internal error.
+    """
+    # ------------------------------------------------------------------
+    # 1. Validate ObjectId formats
+    # ------------------------------------------------------------------
+    try:
+        job_obj_id = ObjectId(request.job_id)
+        resume_obj_id = ObjectId(request.resume_id)
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid job_id or resume_id format"
+        )
+
+    # ------------------------------------------------------------------
+    # 2. Fetch job
+    # ------------------------------------------------------------------
+    job = db.jobs.find_one({"_id": job_obj_id})
+    if not job:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Job not found"
+        )
+
+    # ------------------------------------------------------------------
+    # 3. Fetch resume
+    # ------------------------------------------------------------------
+    resume = db.resumes.find_one({"_id": resume_obj_id})
+    if not resume:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Resume not found"
+        )
+
+    # ------------------------------------------------------------------
+    # 4. Access control: admin OR resume owner only
+    # ------------------------------------------------------------------
+    is_admin = current_user.get("role") == "admin"
+    is_owner = resume.get("candidate_id") == current_user["id"]
+
+    if not (is_admin or is_owner):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied: you can only request counterfactual analysis for your own resumes"
+        )
+
+    # ------------------------------------------------------------------
+    # 5. Fetch latest Graph-RAG match result for this job/resume pair
+    # ------------------------------------------------------------------
+    match_result = db.match_results.find_one(
+        {"job_id": request.job_id, "resume_id": request.resume_id},
+        sort=[("created_at", -1)]      # most recent first
+    )
+
+    if not match_result:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=(
+                "No Graph-RAG match result found for this job/resume pair. "
+                "Please run /ai/graph-match first."
+            )
+        )
+
+    # ------------------------------------------------------------------
+    # 6. Extract fields from match result
+    # ------------------------------------------------------------------
+    job_skills: List[str] = match_result.get("matched_skills", []) + match_result.get("missing_skills", [])
+    # Prefer the skills stored on the documents themselves for accuracy
+    job_skills = job.get("required_skills") or job_skills
+    candidate_skills: List[str] = resume.get("extracted_skills", [])
+    missing_skills: List[str] = match_result.get("missing_skills", [])
+    baseline_score: float = float(match_result.get("match_score", 0.0))
+
+    if not isinstance(missing_skills, list):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Match result contains invalid missing_skills field"
+        )
+
+    # ------------------------------------------------------------------
+    # 7. Handle empty missing skills early (no work to do)
+    # ------------------------------------------------------------------
+    if not missing_skills:
+        logger.info(
+            "Counterfactual analysis: no missing skills — job_id=%s resume_id=%s",
+            request.job_id, request.resume_id
+        )
+        return {
+            "job_id": request.job_id,
+            "resume_id": request.resume_id,
+            "baseline_score": baseline_score,
+            "counterfactuals": [],
+            "message": "No missing skills found — the candidate already matches all job requirements."
+        }
+
+    # ------------------------------------------------------------------
+    # 8. Run counterfactual engine
+    # ------------------------------------------------------------------
+    try:
+        engine = CounterfactualEngine(
+            job_skills=job_skills,
+            candidate_skills=candidate_skills,
+            missing_skills=missing_skills,
+            baseline_match_score=baseline_score,
+            job_id=request.job_id,
+            resume_id=request.resume_id,
+        )
+        counterfactuals = engine.run_counterfactuals(top_k=5)
+    except Exception as exc:
+        logger.error(
+            "CounterfactualEngine error — job_id=%s resume_id=%s: %s",
+            request.job_id, request.resume_id, exc
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Counterfactual analysis failed. Please try again later."
+        )
+
+    # ------------------------------------------------------------------
+    # 9. Persist results in MongoDB counterfactual_results collection
+    # ------------------------------------------------------------------
+    candidate_id = resume.get("candidate_id", "")
+    persistence_doc = {
+        "job_id": request.job_id,
+        "candidate_id": candidate_id,
+        "resume_id": request.resume_id,
+        "baseline_score": baseline_score,
+        "counterfactuals": [
+            {
+                "skill": cf["skill"],
+                "score_delta": cf["score_delta"],
+                "new_score": cf["new_match_score"],
+                "improvement_action": cf["improvement_action"],
+            }
+            for cf in counterfactuals
+        ],
+        "created_at": datetime.utcnow(),
+    }
+
+    try:
+        db.counterfactual_results.insert_one(persistence_doc)
+    except Exception as exc:
+        # Non-fatal: log and continue rather than failing the response
+        logger.error(
+            "Failed to persist counterfactual results — job_id=%s resume_id=%s: %s",
+            request.job_id, request.resume_id, exc
+        )
+
+    # ------------------------------------------------------------------
+    # 10. Log summary
+    # ------------------------------------------------------------------
+    logger.info(
+        "Counterfactual analysis complete — job_id=%s resume_id=%s "
+        "baseline_score=%.2f counterfactuals_generated=%d user=%s",
+        request.job_id, request.resume_id,
+        baseline_score, len(counterfactuals),
+        current_user["id"]
+    )
+
+    # ------------------------------------------------------------------
+    # 11. Return ranked counterfactuals
+    # ------------------------------------------------------------------
+    return {
+        "job_id": request.job_id,
+        "resume_id": request.resume_id,
+        "candidate_id": candidate_id,
+        "baseline_score": baseline_score,
+        "counterfactuals": counterfactuals,
+        "message": (
+            f"Counterfactual analysis complete. "
+            f"{len(counterfactuals)} skill improvement(s) ranked by impact."
+        )
+    }
