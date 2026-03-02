@@ -2,62 +2,46 @@ import requests
 import logging
 from app.config import N8N_WEBHOOK_URL
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-def trigger_n8n_workflow(resume_id: str, candidate_id: str) -> dict:
+def trigger_n8n_workflow(event_type: str, payload: dict) -> None:
     """
-    Trigger n8n workflow by sending a POST request to the webhook URL.
-    
+    Fire-and-forget trigger for an n8n webhook.
+
+    Sends an HTTP POST to ``N8N_WEBHOOK_URL`` with the body::
+
+        {"event": "<event_type>", "data": payload}
+
+    All exceptions are caught and logged; the caller is never affected by
+    n8n being offline or slow.
+
     Args:
-        resume_id: The ID of the uploaded resume
-        candidate_id: The ID of the candidate
-        
-    Returns:
-        Response from n8n webhook or error information
+        event_type: Logical name for the event (e.g. ``"resume_uploaded"``).
+        payload:    Arbitrary dict containing event-specific context.
     """
-    payload = {
-        "resume_id": resume_id,
-        "candidate_id": candidate_id,
-        "event": "resume_uploaded"
-    }
-    
+    if not N8N_WEBHOOK_URL:
+        logger.warning("N8N_WEBHOOK_URL is not configured — skipping trigger for event=%s", event_type)
+        return
+
+    body = {"event": event_type, "data": payload}
+
     try:
-        logger.info(f"Triggering n8n workflow for resume_id={resume_id}, candidate_id={candidate_id}")
-        
-        response = requests.post(
-            N8N_WEBHOOK_URL,
-            json=payload,
-            timeout=10
-        )
-        
+        logger.info("Triggering n8n workflow — event=%s payload_keys=%s", event_type, list(payload.keys()))
+
+        response = requests.post(N8N_WEBHOOK_URL, json=body, timeout=5)
         response.raise_for_status()
-        
-        logger.info(f"n8n workflow triggered successfully: {response.status_code}")
-        
-        return {
-            "success": True,
-            "status_code": response.status_code,
-            "response": response.json() if response.content else {}
-        }
-        
-    except requests.exceptions.RequestException as e:
-        logger.error(f"Failed to trigger n8n workflow: {str(e)}")
-        
-        # Don't crash the application if n8n is offline
-        return {
-            "success": False,
-            "error": str(e),
-            "message": "n8n webhook is currently unavailable"
-        }
-    
-    except Exception as e:
-        logger.error(f"Unexpected error triggering n8n workflow: {str(e)}")
-        
-        return {
-            "success": False,
-            "error": str(e),
-            "message": "Unexpected error occurred"
-        }
+
+        logger.info("n8n webhook accepted — event=%s status=%s", event_type, response.status_code)
+
+    except requests.exceptions.Timeout:
+        logger.error("n8n webhook timed out — event=%s url=%s", event_type, N8N_WEBHOOK_URL)
+
+    except requests.exceptions.ConnectionError:
+        logger.error("n8n webhook unreachable — event=%s url=%s", event_type, N8N_WEBHOOK_URL)
+
+    except requests.exceptions.HTTPError as exc:
+        logger.error("n8n webhook returned an error — event=%s status=%s", event_type, exc.response.status_code)
+
+    except Exception as exc:
+        logger.error("Unexpected error triggering n8n workflow — event=%s error=%s", event_type, exc)

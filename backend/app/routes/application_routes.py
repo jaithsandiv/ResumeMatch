@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException, status, Depends
 from bson import ObjectId
 from app.database import db
 from app.utils.auth_dependencies import get_current_user
+from app.services.n8n_trigger import trigger_n8n_workflow
 from datetime import datetime
 
 router = APIRouter()
@@ -106,7 +107,20 @@ async def apply_to_job(
     }
     
     result = db.applications.insert_one(application_doc)
-    
+
+    # Fire-and-forget: notify n8n that a job application has been submitted.
+    # Any exception inside trigger_n8n_workflow is caught and logged, ensuring
+    # FastAPI remains responsive even when n8n is offline.
+    trigger_n8n_workflow(
+        "job_applied",
+        {
+            "application_id": str(result.inserted_id),
+            "job_id": str(job_object_id),
+            "candidate_id": current_user["id"],
+            "resume_id": str(resume_object_id),
+        },
+    )
+
     return {
         "message": "Application submitted successfully",
         "application_id": str(result.inserted_id),

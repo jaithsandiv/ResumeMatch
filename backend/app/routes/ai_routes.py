@@ -1,14 +1,15 @@
-from fastapi import APIRouter, HTTPException, Depends, status
+from fastapi import APIRouter, HTTPException, Depends, status, Header
 from app.database import db
 from app.services.graph_rag_engine import SkillGraphRAG
 from app.services.skill_extractor import extract_skills
 from app.services.counterfactual_engine import CounterfactualEngine
 from app.utils.auth_dependencies import get_current_user
 from app.models.match_result import MatchResultDocument, MatchExplainability
+from app.config import N8N_SHARED_SECRET
 from bson import ObjectId
 from pydantic import BaseModel
 from datetime import datetime
-from typing import List
+from typing import List, Optional
 import logging
 
 router = APIRouter()
@@ -523,4 +524,125 @@ async def counterfactual_analysis(
             f"Counterfactual analysis complete. "
             f"{len(counterfactuals)} skill improvement(s) ranked by impact."
         )
+    }
+
+
+# ---------------------------------------------------------------------------
+# n8n callback endpoint
+# ---------------------------------------------------------------------------
+
+class N8nCallbackPayload(BaseModel):
+    resume_id: str
+    job_id: str
+    match_score: float
+    missing_skills: List[str] = []
+    counterfactuals: List[dict] = []
+
+
+@router.post("/n8n/callback", status_code=status.HTTP_200_OK)
+async def n8n_callback(
+    payload: N8nCallbackPayload,
+    x_n8n_secret: Optional[str] = Header(default=None, alias="X-N8N-SECRET"),
+):
+    """
+    Receive workflow results posted back by n8n.
+
+    **Internal endpoint** — requests must carry the shared secret in the
+    ``X-N8N-SECRET`` header.  The secret is read from ``N8N_SHARED_SECRET``
+    in the environment.
+
+    n8n sends::
+
+        {
+          "resume_id":       "...",
+          "job_id":          "...",
+          "match_score":     <number>,
+          "missing_skills":  [...],
+          "counterfactuals": [...]
+        }
+
+    FastAPI stores the results in ``match_results`` and
+    ``counterfactual_results`` collections.
+    """
+    # ------------------------------------------------------------------
+    # 1. Authenticate the internal caller via shared secret
+    # ------------------------------------------------------------------
+    if N8N_SHARED_SECRET:
+        if x_n8n_secret != N8N_SHARED_SECRET:
+            logger.warning(
+                "n8n callback rejected — invalid or missing X-N8N-SECRET "
+                "for resume_id=%s job_id=%s",
+                payload.resume_id, payload.job_id,
+            )
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid or missing X-N8N-SECRET header",
+            )
+
+    logger.info(
+        "n8n callback received — resume_id=%s job_id=%s match_score=%.2f",
+        payload.resume_id, payload.job_id, payload.match_score,
+    )
+
+    now = datetime.utcnow()
+
+    # ------------------------------------------------------------------
+    # 2. Persist match result
+    # ------------------------------------------------------------------
+    match_doc = {
+        "resume_id": payload.resume_id,
+        "job_id": payload.job_id,
+        "match_score": payload.match_score,
+        "missing_skills": payload.missing_skills,
+        "source": "n8n_callback",
+        "created_at": now,
+    }
+
+    try:
+        db.match_results.insert_one(match_doc)
+        logger.info(
+            "Match result stored — resume_id=%s job_id=%s",
+            payload.resume_id, payload.job_id,
+        )
+    except Exception as exc:
+        logger.error(
+            "Failed to store match result — resume_id=%s job_id=%s error=%s",
+            payload.resume_id, payload.job_id, exc,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to store match result",
+        )
+
+    # ------------------------------------------------------------------
+    # 3. Persist counterfactual results (if present)
+    # ------------------------------------------------------------------
+    if payload.counterfactuals:
+        cf_doc = {
+            "resume_id": payload.resume_id,
+            "job_id": payload.job_id,
+            "match_score": payload.match_score,
+            "counterfactuals": payload.counterfactuals,
+            "source": "n8n_callback",
+            "created_at": now,
+        }
+
+        try:
+            db.counterfactual_results.insert_one(cf_doc)
+            logger.info(
+                "Counterfactual results stored — resume_id=%s job_id=%s count=%d",
+                payload.resume_id, payload.job_id, len(payload.counterfactuals),
+            )
+        except Exception as exc:
+            logger.error(
+                "Failed to store counterfactual results — resume_id=%s job_id=%s error=%s",
+                payload.resume_id, payload.job_id, exc,
+            )
+            # Non-fatal — match result already saved; log and continue.
+
+    return {
+        "status": "ok",
+        "resume_id": payload.resume_id,
+        "job_id": payload.job_id,
+        "stored_at": now.isoformat(),
     }

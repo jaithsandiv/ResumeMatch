@@ -2,6 +2,7 @@ from fastapi import APIRouter, UploadFile, File, HTTPException, status, Depends
 from app.database import db
 from app.utils.auth_dependencies import get_current_user
 from app.services.resume_parser import extract_text
+from app.services.n8n_trigger import trigger_n8n_workflow
 from datetime import datetime
 from bson import ObjectId
 import os
@@ -92,7 +93,18 @@ async def upload_resume(
     }
     
     result = db.resumes.insert_one(resume_doc)
-    
+
+    # Fire-and-forget: notify n8n that a resume has been uploaded and parsed.
+    # This call is non-blocking; any exception inside trigger_n8n_workflow is
+    # caught and logged so FastAPI remains responsive if n8n is offline.
+    trigger_n8n_workflow(
+        "resume_uploaded",
+        {
+            "resume_id": str(result.inserted_id),
+            "candidate_id": current_user["id"],
+        },
+    )
+
     response = {
         "message": "Resume uploaded successfully",
         "resume_id": str(result.inserted_id),
