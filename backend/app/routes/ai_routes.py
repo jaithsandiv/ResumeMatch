@@ -1,13 +1,15 @@
-from fastapi import APIRouter, HTTPException, Depends, status
+from fastapi import APIRouter, HTTPException, Depends, status, Header
 from app.database import db
 from app.services.graph_rag_engine import SkillGraphRAG
 from app.services.skill_extractor import extract_skills
+from app.services.counterfactual_engine import CounterfactualEngine
 from app.utils.auth_dependencies import get_current_user
 from app.models.match_result import MatchResultDocument, MatchExplainability
+from app.config import N8N_SHARED_SECRET
 from bson import ObjectId
 from pydantic import BaseModel
 from datetime import datetime
-from typing import List
+from typing import List, Optional
 import logging
 
 router = APIRouter()
@@ -308,3 +310,363 @@ async def graph_match_skills(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Graph matching failed. Please try again later."
         )
+
+
+# ---------------------------------------------------------------------------
+# Counterfactual Skill Improvement Analysis
+# ---------------------------------------------------------------------------
+
+class CounterfactualRequest(BaseModel):
+    job_id: str
+    resume_id: str
+
+
+@router.post("/counterfactual-analysis")
+async def counterfactual_analysis(
+    request: CounterfactualRequest,
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Counterfactual Skill Improvement Reasoning.
+
+    Answers the question: "If the candidate improves skill X, how much would
+    their match score increase?"
+
+    The endpoint fetches the latest Graph-RAG match result for the given
+    job/resume pair, runs the CounterfactualEngine to simulate skill additions,
+    persists the results in MongoDB (`counterfactual_results`), and returns
+    counterfactuals ranked by score improvement.
+
+    **Access control**
+    - Admins can request analysis for any resume.
+    - Candidates can only request analysis for their own resumes.
+
+    Args:
+        request: Contains `job_id` and `resume_id`.
+        current_user: Authenticated user from JWT token.
+
+    Returns:
+        Ranked counterfactual improvements with actionable advice.
+
+    Raises:
+        400: Invalid ID format or bad inputs.
+        403: Caller is not the resume owner or an admin.
+        404: Job, resume, or prior match result not found.
+        500: Unexpected internal error.
+    """
+    # ------------------------------------------------------------------
+    # 1. Validate ObjectId formats
+    # ------------------------------------------------------------------
+    try:
+        job_obj_id = ObjectId(request.job_id)
+        resume_obj_id = ObjectId(request.resume_id)
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid job_id or resume_id format"
+        )
+
+    # ------------------------------------------------------------------
+    # 2. Fetch job
+    # ------------------------------------------------------------------
+    job = db.jobs.find_one({"_id": job_obj_id})
+    if not job:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Job not found"
+        )
+
+    # ------------------------------------------------------------------
+    # 3. Fetch resume
+    # ------------------------------------------------------------------
+    resume = db.resumes.find_one({"_id": resume_obj_id})
+    if not resume:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Resume not found"
+        )
+
+    # ------------------------------------------------------------------
+    # 4. Access control: admin OR resume owner only
+    # ------------------------------------------------------------------
+    is_admin = current_user.get("role") == "admin"
+    is_owner = resume.get("candidate_id") == current_user["id"]
+
+    if not (is_admin or is_owner):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied: you can only request counterfactual analysis for your own resumes"
+        )
+
+    # ------------------------------------------------------------------
+    # 5. Fetch latest Graph-RAG match result for this job/resume pair
+    # ------------------------------------------------------------------
+    match_result = db.match_results.find_one(
+        {"job_id": request.job_id, "resume_id": request.resume_id},
+        sort=[("created_at", -1)]      # most recent first
+    )
+
+    if not match_result:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=(
+                "No Graph-RAG match result found for this job/resume pair. "
+                "Please run /ai/graph-match first."
+            )
+        )
+
+    # ------------------------------------------------------------------
+    # 6. Extract fields from match result
+    # ------------------------------------------------------------------
+    job_skills: List[str] = match_result.get("matched_skills", []) + match_result.get("missing_skills", [])
+    # Prefer the skills stored on the documents themselves for accuracy
+    job_skills = job.get("required_skills") or job_skills
+    candidate_skills: List[str] = resume.get("extracted_skills", [])
+    missing_skills: List[str] = match_result.get("missing_skills", [])
+    baseline_score: float = float(match_result.get("match_score", 0.0))
+
+    if not isinstance(missing_skills, list):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Match result contains invalid missing_skills field"
+        )
+
+    # ------------------------------------------------------------------
+    # 7. Handle empty missing skills early (no work to do)
+    # ------------------------------------------------------------------
+    if not missing_skills:
+        logger.info(
+            "Counterfactual analysis: no missing skills — job_id=%s resume_id=%s",
+            request.job_id, request.resume_id
+        )
+        return {
+            "job_id": request.job_id,
+            "resume_id": request.resume_id,
+            "baseline_score": baseline_score,
+            "counterfactuals": [],
+            "message": "No missing skills found — the candidate already matches all job requirements."
+        }
+
+    # ------------------------------------------------------------------
+    # 8. Run counterfactual engine
+    # ------------------------------------------------------------------
+    try:
+        engine = CounterfactualEngine(
+            job_skills=job_skills,
+            candidate_skills=candidate_skills,
+            missing_skills=missing_skills,
+            baseline_match_score=baseline_score,
+            job_id=request.job_id,
+            resume_id=request.resume_id,
+        )
+        counterfactuals = engine.run_counterfactuals(top_k=5)
+    except Exception as exc:
+        logger.error(
+            "CounterfactualEngine error — job_id=%s resume_id=%s: %s",
+            request.job_id, request.resume_id, exc
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Counterfactual analysis failed. Please try again later."
+        )
+
+    # ------------------------------------------------------------------
+    # 9. Persist results in MongoDB counterfactual_results collection
+    # ------------------------------------------------------------------
+    candidate_id = resume.get("candidate_id", "")
+    persistence_doc = {
+        "job_id": request.job_id,
+        "candidate_id": candidate_id,
+        "resume_id": request.resume_id,
+        "baseline_score": baseline_score,
+        "counterfactuals": [
+            {
+                "skill": cf["skill"],
+                "score_delta": cf["score_delta"],
+                "new_score": cf["new_match_score"],
+                "improvement_action": cf["improvement_action"],
+            }
+            for cf in counterfactuals
+        ],
+        "created_at": datetime.utcnow(),
+    }
+
+    try:
+        db.counterfactual_results.insert_one(persistence_doc)
+    except Exception as exc:
+        # Non-fatal: log and continue rather than failing the response
+        logger.error(
+            "Failed to persist counterfactual results — job_id=%s resume_id=%s: %s",
+            request.job_id, request.resume_id, exc
+        )
+
+    # ------------------------------------------------------------------
+    # 10. Log summary
+    # ------------------------------------------------------------------
+    logger.info(
+        "Counterfactual analysis complete — job_id=%s resume_id=%s "
+        "baseline_score=%.2f counterfactuals_generated=%d user=%s",
+        request.job_id, request.resume_id,
+        baseline_score, len(counterfactuals),
+        current_user["id"]
+    )
+
+    # ------------------------------------------------------------------
+    # 11. Return ranked counterfactuals
+    # ------------------------------------------------------------------
+    return {
+        "job_id": request.job_id,
+        "resume_id": request.resume_id,
+        "candidate_id": candidate_id,
+        "baseline_score": baseline_score,
+        "counterfactuals": counterfactuals,
+        "message": (
+            f"Counterfactual analysis complete. "
+            f"{len(counterfactuals)} skill improvement(s) ranked by impact."
+        )
+    }
+
+
+# ---------------------------------------------------------------------------
+# n8n callback endpoint
+# ---------------------------------------------------------------------------
+
+class N8nCallbackPayload(BaseModel):
+    resume_id: str
+    job_id: str
+    match_score: float
+    missing_skills: List[str] = []
+    counterfactuals: List[dict] = []
+
+
+@router.post("/n8n/callback", status_code=status.HTTP_200_OK)
+async def n8n_callback(
+    payload: N8nCallbackPayload,
+    x_n8n_secret: Optional[str] = Header(default=None, alias="X-N8N-SECRET"),
+):
+    """
+    Receive workflow results posted back by n8n.
+
+    **Internal endpoint** — requests must carry the shared secret in the
+    ``X-N8N-SECRET`` header.  The secret is read from ``N8N_SHARED_SECRET``
+    in the environment.
+
+    n8n sends::
+
+        {
+          "resume_id":       "...",
+          "job_id":          "...",
+          "match_score":     <number>,
+          "missing_skills":  [...],
+          "counterfactuals": [...]
+        }
+
+    FastAPI stores the results in ``match_results`` and
+    ``counterfactual_results`` collections.
+    """
+    # ------------------------------------------------------------------
+    # 1. Authenticate the internal caller via shared secret
+    # ------------------------------------------------------------------
+    if N8N_SHARED_SECRET:
+        if x_n8n_secret != N8N_SHARED_SECRET:
+            logger.warning(
+                "n8n callback rejected — invalid or missing X-N8N-SECRET "
+                "for resume_id=%s job_id=%s",
+                payload.resume_id, payload.job_id,
+            )
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid or missing X-N8N-SECRET header",
+            )
+
+    logger.info(
+        "n8n callback received — resume_id=%s job_id=%s match_score=%.2f",
+        payload.resume_id, payload.job_id, payload.match_score,
+    )
+
+    # ------------------------------------------------------------------
+    # 1b. Validate that resume and job exist in MongoDB
+    # ------------------------------------------------------------------
+    try:
+        resume_obj_id = ObjectId(payload.resume_id)
+        job_obj_id = ObjectId(payload.job_id)
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid resume_id or job_id format",
+        )
+
+    if not db.resumes.find_one({"_id": resume_obj_id}):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Resume not found: {payload.resume_id}",
+        )
+
+    if not db.jobs.find_one({"_id": job_obj_id}):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Job not found: {payload.job_id}",
+        )
+
+    now = datetime.utcnow()
+
+    # ------------------------------------------------------------------
+    # 2. Persist match result
+    # ------------------------------------------------------------------
+    match_doc = {
+        "resume_id": payload.resume_id,
+        "job_id": payload.job_id,
+        "match_score": payload.match_score,
+        "missing_skills": payload.missing_skills,
+        "source": "n8n_callback",
+        "created_at": now,
+    }
+
+    try:
+        db.match_results.insert_one(match_doc)
+        logger.info(
+            "Match result stored — resume_id=%s job_id=%s",
+            payload.resume_id, payload.job_id,
+        )
+    except Exception as exc:
+        logger.error(
+            "Failed to store match result — resume_id=%s job_id=%s error=%s",
+            payload.resume_id, payload.job_id, exc,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to store match result",
+        )
+
+    # ------------------------------------------------------------------
+    # 3. Persist counterfactual results (if present)
+    # ------------------------------------------------------------------
+    if payload.counterfactuals:
+        cf_doc = {
+            "resume_id": payload.resume_id,
+            "job_id": payload.job_id,
+            "match_score": payload.match_score,
+            "counterfactuals": payload.counterfactuals,
+            "source": "n8n_callback",
+            "created_at": now,
+        }
+
+        try:
+            db.counterfactual_results.insert_one(cf_doc)
+            logger.info(
+                "Counterfactual results stored — resume_id=%s job_id=%s count=%d",
+                payload.resume_id, payload.job_id, len(payload.counterfactuals),
+            )
+        except Exception as exc:
+            logger.error(
+                "Failed to store counterfactual results — resume_id=%s job_id=%s error=%s",
+                payload.resume_id, payload.job_id, exc,
+            )
+            # Non-fatal — match result already saved; log and continue.
+
+    return {
+        "status": "ok",
+        "resume_id": payload.resume_id,
+        "job_id": payload.job_id,
+        "stored_at": now.isoformat(),
+    }
