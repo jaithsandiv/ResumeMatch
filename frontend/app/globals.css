@@ -1,0 +1,27 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --color-bg-base: #0D0F12;
+  --color-bg-surface: #141720;
+  --color-bg-elevated: #1C2030;
+  --color-border-dim: #252A3A;
+  --color-border-bright: #353B52;
+  --color-accent-green: #00E5A0;
+  --color-accent-blue: #4F8EF7;
+  --color-accent-amber: #F5A623;
+  --color-accent-red: #F06060;
+  --color-text-primary: #E8EAF0;
+  --color-text-secondary: #8891AA;
+  --color-text-muted: #525970;
+
+  --font-sans: 'DM Sans', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+html,
+body {
+  background-color: #0D0F12;
+  color: #E8EAF0;
+  font-family: 'DM Sans', sans-serif;
+}
