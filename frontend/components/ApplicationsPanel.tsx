@@ -2,6 +2,8 @@
 
 import { useState, useEffect, type CSSProperties } from 'react';
 import Link from 'next/link';
+import { SendHorizontal } from 'lucide-react';
+import { EmptyState } from '@/components/ui/EmptyState';
 
 interface StoredApplication {
   application_id: string;
@@ -71,12 +73,15 @@ export function ApplicationsPanel() {
 
   if (applications.length === 0) {
     return (
-      <div className="text-center py-16">
-        <p className="text-text-muted text-sm mb-3">No applications yet.</p>
-        <Link href="/" className="text-accent-blue text-sm hover:underline">
-          Browse Jobs →
-        </Link>
-      </div>
+      <EmptyState
+        icon={SendHorizontal}
+        title="No applications yet"
+        subtitle={
+          <Link href="/" className="text-accent-blue hover:underline">
+            Browse Jobs →
+          </Link>
+        }
+      />
     );
   }
 

@@ -3,11 +3,14 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import * as Dialog from '@radix-ui/react-dialog';
-import { Pencil, Trash2, Plus } from 'lucide-react';
+import { Pencil, Trash2, Plus, Briefcase } from 'lucide-react';
 import api from '@/lib/api';
 import { Navbar } from '@/components/layout/Navbar';
 import { AdminGuard } from '@/components/AdminGuard';
-import { useToast } from '@/components/Toast';
+import { useToast } from '@/hooks/useToast';
+import { handleApiError } from '@/lib/apiError';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { Skeleton } from '@/components/ui/Skeleton';
 import type { Job } from '@/components/JobCard';
 
 function formatDate(dateStr: string): string {
@@ -30,9 +33,9 @@ export default function AdminPage() {
     api
       .get('/jobs/')
       .then(({ data }) => setJobs(data.jobs ?? []))
-      .catch(() => {})
+      .catch((err) => handleApiError(err, toast))
       .finally(() => setLoading(false));
-  }, []);
+  }, [toast]);
 
   const activeCount = jobs.filter((j) => j.status === 'active').length;
 
@@ -44,8 +47,8 @@ export default function AdminPage() {
       setJobs((prev) =>
         prev.map((j) => (j._id === job._id ? { ...j, status: newStatus } : j))
       );
-    } catch {
-      toast.error('Failed to update status');
+    } catch (err) {
+      handleApiError(err, toast, { fallback: 'Failed to update status' });
     } finally {
       setTogglingId(null);
     }
@@ -59,8 +62,8 @@ export default function AdminPage() {
       setJobs((prev) => prev.filter((j) => j._id !== jobToDelete._id));
       toast.success('Job deleted successfully');
       setJobToDelete(null);
-    } catch {
-      toast.error('Failed to delete job');
+    } catch (err) {
+      handleApiError(err, toast, { fallback: 'Failed to delete job' });
     } finally {
       setDeleting(false);
     }
@@ -118,19 +121,24 @@ export default function AdminPage() {
             </div>
 
             {loading ? (
-              <div className="px-6 py-12 text-center text-text-muted font-mono text-sm animate-pulse">
-                Loading…
+              <div className="p-6 space-y-3">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <Skeleton key={i} className="h-10 w-full" />
+                ))}
               </div>
             ) : jobs.length === 0 ? (
-              <div className="px-6 py-12 text-center text-text-muted text-sm">
-                No jobs yet.{' '}
-                <Link href="/admin/jobs/new" className="text-accent-green hover:underline">
-                  Create one
-                </Link>
-              </div>
+              <EmptyState
+                icon={Briefcase}
+                title="No active jobs found"
+                subtitle={
+                  <Link href="/admin/jobs/new" className="text-accent-green hover:underline">
+                    Create one →
+                  </Link>
+                }
+              />
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+                <table className="w-full min-w-180 text-sm">
                   <thead>
                     <tr className="border-b border-border-dim">
                       {['Title', 'Company', 'Skills', 'Status', 'Created', 'Actions'].map(

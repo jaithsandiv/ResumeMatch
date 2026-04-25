@@ -3,7 +3,7 @@
 import { useEffect, useState, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
-import { useToast } from '@/components/Toast';
+import { useToast } from '@/hooks/useToast';
 
 export function AdminGuard({ children }: { children: ReactNode }) {
   const router = useRouter();

@@ -2,10 +2,13 @@
 
 import { useState, useEffect, useRef } from 'react';
 import type { DragEvent, ChangeEvent } from 'react';
-import { FileText, Download, Eye, Zap, Loader2, X } from 'lucide-react';
+import { FileText, Download, Eye, Zap, Loader2, X, Upload } from 'lucide-react';
 import * as Dialog from '@radix-ui/react-dialog';
 import api from '@/lib/api';
 import { SkillTag } from '@/components/ui/SkillTag';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { useToast } from '@/hooks/useToast';
+import { handleApiError } from '@/lib/apiError';
 
 interface StoredResume {
   resume_id: string;
@@ -74,6 +77,7 @@ function ParseStatusBadge({ status }: { status: string }) {
 }
 
 export function ResumePanel({ onResumeCountChange }: ResumePanelProps) {
+  const toast = useToast();
   const [resumes, setResumes] = useState<StoredResume[]>([]);
   const [dragOver, setDragOver] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -157,9 +161,11 @@ export function ResumePanel({ onResumeCountChange }: ResumePanelProps) {
       };
       persist([entry, ...resumes]);
       setSelectedFile(null);
+      toast.success('Resume uploaded');
     } catch (err: unknown) {
       const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
       setUploadError(detail ?? 'Upload failed. Please try again.');
+      handleApiError(err, toast, { fallback: 'Upload failed. Please try again.' });
     } finally {
       setUploading(false);
     }
@@ -172,8 +178,9 @@ export function ResumePanel({ onResumeCountChange }: ResumePanelProps) {
     try {
       const { data } = await api.get(`/resumes/${resumeId}/text`);
       setPreviewData(data);
-    } catch {
+    } catch (err) {
       setPreviewData(null);
+      handleApiError(err, toast);
     } finally {
       setPreviewLoading(false);
     }
@@ -183,8 +190,8 @@ export function ResumePanel({ onResumeCountChange }: ResumePanelProps) {
     try {
       const { data } = await api.get(`/resumes/${resumeId}/download-url`);
       window.open(data.url, '_blank', 'noopener,noreferrer');
-    } catch {
-      // silent — download-url errors are non-critical
+    } catch (err) {
+      handleApiError(err, toast, { fallback: 'Download failed' });
     }
   }
 
@@ -193,8 +200,9 @@ export function ResumePanel({ onResumeCountChange }: ResumePanelProps) {
     try {
       const { data } = await api.post('/ai/skill-extraction', { resume_id: resumeId });
       setSkillsMap((prev) => ({ ...prev, [resumeId]: data.skills ?? [] }));
-    } catch {
-      // silent
+      toast.success('Skills extracted');
+    } catch (err) {
+      handleApiError(err, toast, { fallback: 'Skill extraction failed' });
     } finally {
       setExtractingId(null);
     }
@@ -265,11 +273,13 @@ export function ResumePanel({ onResumeCountChange }: ResumePanelProps) {
 
       {/* Resume list */}
       <div className="space-y-3">
-        {resumes.length === 0 && (
-          <p className="text-text-muted text-sm text-center py-10">
-            No resumes uploaded yet.
-          </p>
-        )}
+        {resumes.length === 0 ? (
+          <EmptyState
+            icon={Upload}
+            title="No resumes uploaded yet"
+            subtitle="Upload your first resume"
+          />
+        ) : null}
         {resumes.map((resume) => (
           <div key={resume.resume_id} className="bg-bg-surface border border-border-dim rounded-lg px-5 py-4">
             <div className="flex items-center gap-3">

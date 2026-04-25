@@ -5,9 +5,12 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import api from '@/lib/api';
 import { setToken } from '@/lib/auth';
+import { useToast } from '@/hooks/useToast';
+import { handleApiError } from '@/lib/apiError';
 
 export default function RegisterPage() {
   const router = useRouter();
+  const toast = useToast();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -31,11 +34,13 @@ export default function RegisterPage() {
     try {
       const { data } = await api.post('/auth/register', { name, email, password });
       setToken(data.access_token);
+      toast.success('Account created');
       router.push('/profile');
     } catch (err: unknown) {
       const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
       setError(detail ?? 'Registration failed. Please try again.');
       setFieldError('all');
+      handleApiError(err, toast, { silent401: true, fallback: 'Registration failed' });
     } finally {
       setLoading(false);
     }

@@ -8,7 +8,8 @@ import api from '@/lib/api';
 import { Navbar } from '@/components/layout/Navbar';
 import { AdminGuard } from '@/components/AdminGuard';
 import { SkillsTagInput } from '@/components/SkillsTagInput';
-import { useToast } from '@/components/Toast';
+import { useToast } from '@/hooks/useToast';
+import { handleApiError } from '@/lib/apiError';
 import type { Job } from '@/components/JobCard';
 
 type Tab = 'edit' | 'applicants';
@@ -50,9 +51,12 @@ export default function EditJobPage() {
           setStatus((found.status as 'active' | 'archived' | 'draft') ?? 'active');
         }
       })
-      .catch(() => setJob(null))
+      .catch((err) => {
+        setJob(null);
+        handleApiError(err, toast);
+      })
       .finally(() => setLoading(false));
-  }, [id]);
+  }, [id, toast]);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -73,6 +77,7 @@ export default function EditJobPage() {
       const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data
         ?.detail;
       setError(detail ?? 'Failed to update job');
+      handleApiError(err, toast, { fallback: 'Failed to update job' });
     } finally {
       setSubmitting(false);
     }

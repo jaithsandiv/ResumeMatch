@@ -1,13 +1,18 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Search } from 'lucide-react';
+import { Search, Briefcase } from 'lucide-react';
 import api from '@/lib/api';
 import { JobCard, type Job } from '@/components/JobCard';
+import { SkeletonJobCard } from '@/components/ui/Skeleton';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { useToast } from '@/hooks/useToast';
+import { handleApiError } from '@/lib/apiError';
 
 const GRID_BG = `url("data:image/svg+xml,%3Csvg width='40' height='40' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 0h40v40H0z' fill='none'/%3E%3Cpath d='M0 0v40M40 0v40' stroke='%23252A3A' stroke-width='0.5' stroke-opacity='0.5'/%3E%3Cpath d='M0 0h40M0 40h40' stroke='%23252A3A' stroke-width='0.5' stroke-opacity='0.5'/%3E%3C/svg%3E")`;
 
 export default function HomePage() {
+  const toast = useToast();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState('');
@@ -16,9 +21,9 @@ export default function HomePage() {
     api
       .get('/jobs/')
       .then(({ data }) => setJobs(data.jobs ?? []))
-      .catch(() => {})
+      .catch((err) => handleApiError(err, toast))
       .finally(() => setLoading(false));
-  }, []);
+  }, [toast]);
 
   const activeCount = jobs.filter((j) => j.status === 'active').length;
 
@@ -83,14 +88,15 @@ export default function HomePage() {
         {loading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="bg-bg-elevated rounded-lg p-5 animate-pulse h-44" />
+              <SkeletonJobCard key={i} />
             ))}
           </div>
         ) : filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-24 gap-3 text-text-muted">
-            <Search className="w-10 h-10" />
-            <p className="text-base">No jobs found</p>
-          </div>
+          <EmptyState
+            icon={Briefcase}
+            title="No active jobs found"
+            subtitle="Check back soon"
+          />
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {filtered.map((job) => (

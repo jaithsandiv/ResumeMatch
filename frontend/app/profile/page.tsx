@@ -5,6 +5,7 @@ import { getUser } from '@/lib/auth';
 import { Navbar } from '@/components/layout/Navbar';
 import { ResumePanel } from '@/components/ResumePanel';
 import { ApplicationsPanel } from '@/components/ApplicationsPanel';
+import { SkeletonProfileStat } from '@/components/ui/Skeleton';
 
 interface StoredResume {
   resume_id: string;
@@ -37,6 +38,7 @@ export default function ProfilePage() {
   const [tab, setTab] = useState<Tab>('resumes');
   const [resumeCount, setResumeCount] = useState(0);
   const [appCount, setAppCount] = useState(0);
+  const [statsLoading, setStatsLoading] = useState(true);
 
   useEffect(() => {
     try {
@@ -46,6 +48,8 @@ export default function ProfilePage() {
       setAppCount(apps.length);
     } catch {
       // ignore parse errors
+    } finally {
+      setStatsLoading(false);
     }
   }, []);
 
@@ -77,19 +81,23 @@ export default function ProfilePage() {
 
         {/* Quick stats */}
         <div className="grid grid-cols-3 gap-4 mb-8">
-          {[
-            { label: 'Resumes Uploaded', value: resumeCount },
-            { label: 'Applications Sent', value: appCount },
-            { label: 'Avg Match Score', value: '—' },
-          ].map(({ label, value }) => (
-            <div
-              key={label}
-              className="bg-bg-surface border border-border-dim rounded-lg p-4 text-center"
-            >
-              <div className="font-mono text-accent-green text-2xl font-semibold">{value}</div>
-              <div className="text-text-muted text-xs mt-1">{label}</div>
-            </div>
-          ))}
+          {statsLoading
+            ? Array.from({ length: 3 }).map((_, i) => <SkeletonProfileStat key={i} />)
+            : [
+                { label: 'Resumes Uploaded', value: resumeCount },
+                { label: 'Applications Sent', value: appCount },
+                { label: 'Avg Match Score', value: '—' },
+              ].map(({ label, value }) => (
+                <div
+                  key={label}
+                  className="bg-bg-surface border border-border-dim rounded-lg p-4 text-center"
+                >
+                  <div className="font-mono text-accent-green text-2xl font-semibold">
+                    {value}
+                  </div>
+                  <div className="text-text-muted text-xs mt-1">{label}</div>
+                </div>
+              ))}
         </div>
 
         {/* Tabs */}

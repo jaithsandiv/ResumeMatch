@@ -8,7 +8,8 @@ import api from '@/lib/api';
 import { Navbar } from '@/components/layout/Navbar';
 import { AdminGuard } from '@/components/AdminGuard';
 import { SkillsTagInput } from '@/components/SkillsTagInput';
-import { useToast } from '@/components/Toast';
+import { useToast } from '@/hooks/useToast';
+import { handleApiError } from '@/lib/apiError';
 
 const inputClass =
   'w-full bg-bg-elevated border border-border-dim rounded-lg px-3 py-2.5 text-text-primary text-sm placeholder:text-text-muted outline-none focus:border-border-bright transition-colors';
@@ -47,6 +48,7 @@ export default function NewJobPage() {
       const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data
         ?.detail;
       setError(detail ?? 'Failed to create job');
+      handleApiError(err, toast, { fallback: 'Failed to create job' });
     } finally {
       setSubmitting(false);
     }

@@ -8,6 +8,9 @@ import { MatchScoreCard } from '@/components/insights/MatchScoreCard';
 import { ExplainabilityChart } from '@/components/insights/ExplainabilityChart';
 import { CounterfactualPanel } from '@/components/insights/CounterfactualPanel';
 import api from '@/lib/api';
+import { useToast } from '@/hooks/useToast';
+import { handleApiError } from '@/lib/apiError';
+import { SkeletonInsightCard } from '@/components/ui/Skeleton';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -123,6 +126,7 @@ function StepTracker({ current, error }: StepTrackerProps) {
 
 export default function InsightsPage() {
   const searchParams = useSearchParams();
+  const toast = useToast();
   const jobId = searchParams.get('job_id') ?? '';
   const resumeId = searchParams.get('resume_id') ?? '';
 
@@ -182,8 +186,9 @@ export default function InsightsPage() {
         (err as Error)?.message ??
         'Unknown error';
       setErrorMsg(msg);
+      handleApiError(err, toast, { fallback: msg });
     }
-  }, [jobId, resumeId]);
+  }, [jobId, resumeId, toast]);
 
   useEffect(() => {
     if (jobId && resumeId) {

@@ -5,9 +5,12 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import api from '@/lib/api';
 import { setToken } from '@/lib/auth';
+import { useToast } from '@/hooks/useToast';
+import { handleApiError } from '@/lib/apiError';
 
 export default function LoginPage() {
   const router = useRouter();
+  const toast = useToast();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -20,10 +23,15 @@ export default function LoginPage() {
     try {
       const { data } = await api.post('/auth/login', { email, password });
       setToken(data.access_token);
+      toast.success('Signed in');
       router.push('/profile');
     } catch (err: unknown) {
       const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+      const status = (err as { response?: { status?: number } })?.response?.status;
       setError(detail ?? 'Invalid email or password');
+      if (status !== 401) {
+        handleApiError(err, toast, { silent401: true, fallback: 'Login failed' });
+      }
     } finally {
       setLoading(false);
     }
