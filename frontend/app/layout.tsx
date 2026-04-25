@@ -6,6 +6,7 @@ import { ToastProvider } from "@/components/ui/Toast";
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
+  weight: ["300", "400", "500"],
 });
 
 const geistMono = Geist_Mono({
