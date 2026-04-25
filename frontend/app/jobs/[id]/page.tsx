@@ -8,6 +8,8 @@ import { ChevronLeft, X } from 'lucide-react';
 import api from '@/lib/api';
 import { getUser } from '@/lib/auth';
 import { SkillTag } from '@/components/ui/SkillTag';
+import { useToast } from '@/hooks/useToast';
+import { handleApiError } from '@/lib/apiError';
 import type { Job } from '@/components/JobCard';
 
 interface Resume {
@@ -24,6 +26,7 @@ function daysAgo(dateStr: string): string {
 
 export default function JobDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const toast = useToast();
 
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [job, setJob] = useState<Job | null>(null);
@@ -48,9 +51,12 @@ export default function JobDetailPage() {
         const found = (data.jobs ?? []).find((j: Job) => j._id === id) ?? null;
         setJob(found);
       })
-      .catch(() => setJob(null))
+      .catch((err) => {
+        setJob(null);
+        handleApiError(err, toast);
+      })
       .finally(() => setLoading(false));
-  }, [id]);
+  }, [id, toast]);
 
   useEffect(() => {
     if (!open) return;
@@ -80,11 +86,34 @@ export default function JobDetailPage() {
         resume_id: selectedResume,
         cover_letter: coverLetter,
       });
-      setAppliedAppId(data._id ?? data.id ?? '');
+      const newAppId = data._id ?? data.id ?? '';
+      setAppliedAppId(newAppId);
+
+      try {
+        const stored = JSON.parse(localStorage.getItem('rm_applications') ?? '[]');
+        const entry = {
+          application_id: newAppId,
+          job_id: job._id,
+          job_title: job.title,
+          company: job.company,
+          resume_id: selectedResume,
+          status: 'pending',
+          applied_at: new Date().toISOString(),
+        };
+        localStorage.setItem(
+          'rm_applications',
+          JSON.stringify([entry, ...stored])
+        );
+      } catch {
+        // ignore storage errors
+      }
+
+      toast.success('Application submitted');
     } catch (err: unknown) {
       const detail = (err as { response?: { data?: { detail?: string } } })
         ?.response?.data?.detail;
       setApplyError(detail ?? 'Failed to apply. Please try again.');
+      handleApiError(err, toast, { fallback: 'Failed to apply' });
     } finally {
       setApplying(false);
     }
