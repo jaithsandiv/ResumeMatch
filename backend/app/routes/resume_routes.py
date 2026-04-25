@@ -290,3 +290,39 @@ async def get_resume_download_url(
         "expires_in": 600,
         "url": presigned_url,
     }
+
+
+# ---------------------------------------------------------------------------
+# DELETE /resumes/{resume_id}
+# ---------------------------------------------------------------------------
+
+@router.delete("/{resume_id}")
+async def delete_resume(
+    resume_id: str,
+    current_user: dict = Depends(get_current_user),
+):
+    """
+    Delete a resume: remove the object from B2 and the metadata document
+    from MongoDB.  Only the resume owner or an admin may call this endpoint.
+    """
+    resume = _fetch_resume_with_access(resume_id, current_user)
+
+    object_key = resume.get("b2_object_key")
+    if object_key:
+        storage = _storage()
+        try:
+            storage.delete_file(object_key)
+        except Exception as exc:
+            logger.error(
+                "B2 delete failed — resume_id=%s key=%s: %s",
+                resume_id, object_key, exc,
+            )
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to delete resume from cloud storage.",
+            )
+
+    db.resumes.delete_one({"_id": resume["_id"]})
+    logger.info("Resume deleted — resume_id=%s user=%s", resume_id, current_user["id"])
+
+    return {"message": "Resume deleted successfully", "resume_id": resume_id}

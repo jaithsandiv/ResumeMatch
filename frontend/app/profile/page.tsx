@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { getUser } from '@/lib/auth';
-import { Navbar } from '@/components/layout/Navbar';
 import { ResumePanel } from '@/components/ResumePanel';
 import { ApplicationsPanel } from '@/components/ApplicationsPanel';
 import { SkeletonProfileStat } from '@/components/ui/Skeleton';
@@ -57,8 +56,6 @@ export default function ProfilePage() {
 
   return (
     <div className="min-h-screen bg-bg-base">
-      <Navbar />
-
       <div className="max-w-4xl mx-auto px-6 py-10">
         {/* User card */}
         <div className="bg-bg-surface border border-border-dim rounded-xl p-6 flex items-center gap-5 mb-6">

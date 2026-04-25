@@ -1,10 +1,8 @@
-import { Navbar } from '@/components/layout/Navbar';
 import { Skeleton, SkeletonProfileStat } from '@/components/ui/Skeleton';
 
 export default function ProfileLoading() {
   return (
     <div className="min-h-screen bg-bg-base">
-      <Navbar />
       <div className="max-w-4xl mx-auto px-6 py-10">
         {/* User card skeleton */}
         <div className="bg-bg-surface border border-border-dim rounded-xl p-6 flex items-center gap-5 mb-6">

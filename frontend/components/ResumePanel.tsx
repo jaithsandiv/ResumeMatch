@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import type { DragEvent, ChangeEvent } from 'react';
-import { FileText, Download, Eye, Zap, Loader2, X, Upload } from 'lucide-react';
+import { FileText, Download, Eye, Zap, Loader2, X, Upload, Trash2 } from 'lucide-react';
 import * as Dialog from '@radix-ui/react-dialog';
 import api from '@/lib/api';
 import { SkillTag } from '@/components/ui/SkillTag';
@@ -90,6 +90,9 @@ export function ResumePanel({ onResumeCountChange }: ResumePanelProps) {
 
   const [extractingId, setExtractingId] = useState<string | null>(null);
   const [skillsMap, setSkillsMap] = useState<Record<string, string[]>>({});
+
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -192,6 +195,26 @@ export function ResumePanel({ onResumeCountChange }: ResumePanelProps) {
       window.open(data.url, '_blank', 'noopener,noreferrer');
     } catch (err) {
       handleApiError(err, toast, { fallback: 'Download failed' });
+    }
+  }
+
+  async function handleDelete(resumeId: string) {
+    setDeletingId(resumeId);
+    try {
+      await api.delete(`/resumes/${resumeId}`);
+      const updated = resumes.filter((r) => r.resume_id !== resumeId);
+      persist(updated);
+      setSkillsMap((prev) => {
+        const next = { ...prev };
+        delete next[resumeId];
+        return next;
+      });
+      toast.success('Resume deleted');
+    } catch (err) {
+      handleApiError(err, toast, { fallback: 'Delete failed' });
+    } finally {
+      setDeletingId(null);
+      setConfirmDeleteId(null);
     }
   }
 
@@ -325,6 +348,19 @@ export function ResumePanel({ onResumeCountChange }: ResumePanelProps) {
                   )}
                   Extract Skills
                 </button>
+                <button
+                  onClick={() => setConfirmDeleteId(resume.resume_id)}
+                  disabled={deletingId === resume.resume_id}
+                  title="Delete"
+                  className="flex items-center gap-1 text-text-muted transition-colors text-xs px-2 py-1 rounded border border-border-dim hover:text-accent-red hover:border-accent-red/50 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  {deletingId === resume.resume_id ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Trash2 className="w-3.5 h-3.5" />
+                  )}
+                  Delete
+                </button>
               </div>
             </div>
 
@@ -338,6 +374,51 @@ export function ResumePanel({ onResumeCountChange }: ResumePanelProps) {
           </div>
         ))}
       </div>
+
+      {/* Delete confirmation modal */}
+      <Dialog.Root
+        open={confirmDeleteId !== null}
+        onOpenChange={(open) => {
+          if (!open) setConfirmDeleteId(null);
+        }}
+      >
+        <Dialog.Portal>
+          <Dialog.Overlay className="fixed inset-0 bg-black/60 z-50" />
+          <Dialog.Content className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-md bg-bg-surface border border-border-dim rounded-xl p-6 shadow-xl focus:outline-none">
+            <Dialog.Title className="text-text-primary font-semibold text-base mb-2">
+              Delete resume?
+            </Dialog.Title>
+            <Dialog.Description className="text-text-muted text-sm mb-6">
+              This will permanently remove the resume and its parsed data. This action cannot be undone.
+            </Dialog.Description>
+            <div className="flex justify-end gap-2">
+              <Dialog.Close asChild>
+                <button
+                  className="text-text-secondary hover:text-text-primary transition-colors text-sm px-4 py-2 rounded border border-border-dim"
+                  disabled={deletingId !== null}
+                >
+                  Cancel
+                </button>
+              </Dialog.Close>
+              <button
+                onClick={() => confirmDeleteId && handleDelete(confirmDeleteId)}
+                disabled={deletingId !== null}
+                className="flex items-center gap-2 font-bold px-4 py-2 rounded text-sm hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
+                style={{ backgroundColor: '#F06060', color: '#0E141B' }}
+              >
+                {deletingId !== null ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Deleting…
+                  </>
+                ) : (
+                  'Delete'
+                )}
+              </button>
+            </div>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
 
       {/* Text preview modal */}
       <Dialog.Root open={previewOpen} onOpenChange={setPreviewOpen}>
