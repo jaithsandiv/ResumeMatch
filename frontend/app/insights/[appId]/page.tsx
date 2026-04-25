@@ -3,7 +3,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { CheckCircle2, Loader2 } from 'lucide-react';
-import { Navbar } from '@/components/layout/Navbar';
 import { MatchScoreCard } from '@/components/insights/MatchScoreCard';
 import { ExplainabilityChart } from '@/components/insights/ExplainabilityChart';
 import { CounterfactualPanel } from '@/components/insights/CounterfactualPanel';
@@ -215,8 +214,6 @@ export default function InsightsPage() {
 
   return (
     <div className="min-h-screen bg-bg-base">
-      <Navbar />
-
       <div className="max-w-3xl mx-auto px-6 py-10">
         {/* Header */}
         <div className="mb-8">

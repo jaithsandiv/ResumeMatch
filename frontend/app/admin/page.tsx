@@ -5,7 +5,6 @@ import Link from 'next/link';
 import * as Dialog from '@radix-ui/react-dialog';
 import { Pencil, Trash2, Plus, Briefcase } from 'lucide-react';
 import api from '@/lib/api';
-import { Navbar } from '@/components/layout/Navbar';
 import { AdminGuard } from '@/components/AdminGuard';
 import { useToast } from '@/hooks/useToast';
 import { handleApiError } from '@/lib/apiError';
@@ -72,8 +71,6 @@ export default function AdminPage() {
   return (
     <AdminGuard>
       <div className="min-h-screen bg-bg-base">
-        <Navbar />
-
         {/* Admin header */}
         <div className="bg-bg-surface border-b border-border-dim px-6 py-4">
           <div className="max-w-6xl mx-auto flex items-center gap-4">

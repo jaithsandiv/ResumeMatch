@@ -1,10 +1,8 @@
-import { Navbar } from '@/components/layout/Navbar';
 import { Skeleton } from '@/components/ui/Skeleton';
 
 export default function AdminLoading() {
   return (
     <div className="min-h-screen bg-bg-base">
-      <Navbar />
       <div className="bg-bg-surface border-b border-border-dim px-6 py-4">
         <div className="max-w-6xl mx-auto">
           <Skeleton className="h-7 w-40" />

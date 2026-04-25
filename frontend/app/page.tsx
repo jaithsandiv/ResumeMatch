@@ -38,7 +38,7 @@ export default function HomePage() {
   });
 
   return (
-    <main className="min-h-screen bg-bg-base">
+    <div className="min-h-screen bg-bg-base">
       {/* Hero */}
       <section
         className="bg-bg-surface relative"
@@ -105,6 +105,6 @@ export default function HomePage() {
           </div>
         )}
       </div>
-    </main>
+    </div>
   );
 }

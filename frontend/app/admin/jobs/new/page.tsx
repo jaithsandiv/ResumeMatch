@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ChevronLeft } from 'lucide-react';
 import api from '@/lib/api';
-import { Navbar } from '@/components/layout/Navbar';
 import { AdminGuard } from '@/components/AdminGuard';
 import { SkillsTagInput } from '@/components/SkillsTagInput';
 import { useToast } from '@/hooks/useToast';
@@ -57,8 +56,6 @@ export default function NewJobPage() {
   return (
     <AdminGuard>
       <div className="min-h-screen bg-bg-base">
-        <Navbar />
-
         <div className="max-w-2xl mx-auto px-6 py-10">
           <div className="mb-8">
             <Link
