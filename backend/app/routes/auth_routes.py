@@ -59,6 +59,7 @@ async def register(user_data: dict):
     token_data = {
         "id": user_id,
         "email": email,
+        "full_name": name,
         "role": "visitor"
     }
     access_token = create_access_token(token_data)
@@ -114,6 +115,7 @@ async def login(credentials: dict):
     token_data = {
         "id": str(user["_id"]),
         "email": user["email"],
+        "full_name": user.get("full_name", ""),
         "role": user.get("role", "visitor")
     }
     access_token = create_access_token(token_data)

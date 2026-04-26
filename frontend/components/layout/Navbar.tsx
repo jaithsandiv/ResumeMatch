@@ -58,9 +58,12 @@ export function Navbar() {
     router.push('/auth/login');
   }
 
-  const links = user && isAdmin()
-    ? [...NAV_LINKS, { href: '/admin', label: 'Admin' }]
-    : NAV_LINKS;
+  const links = user
+    ? [
+        ...NAV_LINKS,
+        ...(isAdmin() ? [{ href: '/admin', label: 'Admin' }] : []),
+      ]
+    : [{ href: '/', label: 'Jobs' }];
 
   return (
     <>
@@ -117,14 +120,6 @@ export function Navbar() {
                     <div className="px-3 py-2 border-b border-border-dim mb-1">
                       <p className="text-xs text-text-muted truncate">{user.email}</p>
                     </div>
-                    <DropdownMenu.Item asChild>
-                      <Link
-                        href="/profile"
-                        className="flex items-center px-3 py-2 text-sm text-text-secondary hover:text-text-primary hover:bg-bg-base cursor-pointer outline-none"
-                      >
-                        Profile
-                      </Link>
-                    </DropdownMenu.Item>
                     <DropdownMenu.Item
                       onSelect={handleLogout}
                       className="flex items-center px-3 py-2 text-sm text-accent-red hover:bg-bg-base cursor-pointer outline-none"
@@ -187,12 +182,6 @@ export function Navbar() {
             {user ? (
               <>
                 <p className="px-3 text-xs text-text-muted pb-1">{user.email}</p>
-                <Link
-                  href="/profile"
-                  className="block px-3 py-2 rounded-md text-sm text-text-secondary hover:text-text-primary hover:bg-bg-elevated"
-                >
-                  Profile
-                </Link>
                 <button
                   onClick={handleLogout}
                   className="block w-full text-left px-3 py-2 rounded-md text-sm text-accent-red hover:bg-bg-elevated"

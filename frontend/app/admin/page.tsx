@@ -93,23 +93,31 @@ export default function AdminPage() {
           {/* Stats row */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
             {[
-              { label: 'Active Jobs', value: loading ? '—' : String(activeCount) },
-              { label: 'Total Resumes', value: stats ? String(stats.total_resumes) : '—' },
-              { label: 'Applications', value: stats ? String(stats.total_applications) : '—' },
-              { label: 'Users', value: stats ? String(stats.total_users) : '—' },
-            ].map(({ label, value }) => (
-              <div
-                key={label}
-                className="bg-bg-elevated border border-border-dim rounded-lg px-6 py-5"
-              >
-                <div className="font-mono text-accent-green text-3xl font-bold mb-1">
-                  {value}
+              { label: 'Active Jobs', value: loading ? '—' : String(activeCount), href: null },
+              { label: 'Total Resumes', value: stats ? String(stats.total_resumes) : '—', href: null },
+              { label: 'Applications', value: stats ? String(stats.total_applications) : '—', href: null },
+              { label: 'Users', value: stats ? String(stats.total_users) : '—', href: '/admin/users' },
+            ].map(({ label, value, href }) => {
+              const inner = (
+                <>
+                  <div className="font-mono text-accent-green text-3xl font-bold mb-1">{value}</div>
+                  <div className="text-text-muted text-xs uppercase font-mono tracking-wider">{label}</div>
+                </>
+              );
+              return href ? (
+                <Link
+                  key={label}
+                  href={href}
+                  className="bg-bg-elevated border border-border-dim rounded-lg px-6 py-5 hover:border-accent-green/40 transition-colors"
+                >
+                  {inner}
+                </Link>
+              ) : (
+                <div key={label} className="bg-bg-elevated border border-border-dim rounded-lg px-6 py-5">
+                  {inner}
                 </div>
-                <div className="text-text-muted text-xs uppercase font-mono tracking-wider">
-                  {label}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           {/* Jobs table */}
@@ -166,7 +174,7 @@ export default function AdminPage() {
                       >
                         <td className="px-4 py-3">
                           <Link
-                            href={`/admin/jobs/${job._id}`}
+                            href={`/admin/jobs/${job._id}/applicants`}
                             className="text-text-primary font-medium hover:text-accent-blue transition-colors"
                           >
                             {job.title}

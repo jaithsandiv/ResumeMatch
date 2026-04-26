@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import * as Dialog from '@radix-ui/react-dialog';
-import { ChevronLeft, X } from 'lucide-react';
+import { ChevronLeft, ChevronDown, ChevronUp, X } from 'lucide-react';
 import api from '@/lib/api';
 import { getUser } from '@/lib/auth';
 import { SkillTag } from '@/components/ui/SkillTag';
@@ -32,6 +32,9 @@ export default function JobDetailPage() {
   const [job, setJob] = useState<Job | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const [descExpanded, setDescExpanded] = useState(false);
+  const [descOverflows, setDescOverflows] = useState(false);
+  const descRef = useRef<HTMLParagraphElement>(null);
   const [open, setOpen] = useState(false);
   const [resumes, setResumes] = useState<Resume[]>([]);
   const [selectedResume, setSelectedResume] = useState('');
@@ -57,6 +60,11 @@ export default function JobDetailPage() {
       })
       .finally(() => setLoading(false));
   }, [id, toast]);
+
+  useEffect(() => {
+    if (!descRef.current) return;
+    setDescOverflows(descRef.current.scrollHeight > descRef.current.clientHeight);
+  }, [job]);
 
   useEffect(() => {
     if (!open) return;
@@ -175,13 +183,6 @@ export default function JobDetailPage() {
             </div>
 
             <section className="mb-8">
-              <h2 className="text-text-primary font-semibold text-base mb-3">About the Role</h2>
-              <p className="text-text-secondary text-sm leading-relaxed whitespace-pre-line">
-                {job.description}
-              </p>
-            </section>
-
-            <section>
               <div className="flex items-center gap-2 mb-3">
                 <h2 className="text-text-primary font-semibold text-base">Required Skills</h2>
                 <span className="bg-bg-elevated border border-border-dim text-text-muted text-xs font-mono px-2 py-0.5 rounded-full">
@@ -193,6 +194,34 @@ export default function JobDetailPage() {
                   <SkillTag key={skill} label={skill} variant="neutral" />
                 ))}
               </div>
+            </section>
+
+            <section>
+              <h2 className="text-text-primary font-semibold text-base mb-3">About the Role</h2>
+              <div className="relative">
+                <p
+                  ref={descRef}
+                  style={descExpanded ? undefined : { display: '-webkit-box', WebkitLineClamp: 20, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}
+                  className="text-text-secondary text-sm leading-relaxed whitespace-pre-line"
+                >
+                  {job.description}
+                </p>
+                {!descExpanded && descOverflows && (
+                  <div className="absolute bottom-0 inset-x-0 h-12 bg-linear-to-t from-bg-base to-transparent pointer-events-none" />
+                )}
+              </div>
+              {descOverflows && (
+                <button
+                  onClick={() => setDescExpanded((v) => !v)}
+                  className="mt-3 inline-flex items-center gap-1 text-accent-blue text-sm hover:underline"
+                >
+                  {descExpanded ? (
+                    <><ChevronUp size={14} /> Show less</>
+                  ) : (
+                    <><ChevronDown size={14} /> Show more</>
+                  )}
+                </button>
+              )}
             </section>
           </div>
 

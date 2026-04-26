@@ -9,53 +9,7 @@ import { AdminGuard } from '@/components/AdminGuard';
 import { SkillsTagInput } from '@/components/SkillsTagInput';
 import { useToast } from '@/hooks/useToast';
 import { handleApiError } from '@/lib/apiError';
-import { EmptyState } from '@/components/ui/EmptyState';
-import { Skeleton } from '@/components/ui/Skeleton';
 import type { Job } from '@/components/JobCard';
-
-interface Applicant {
-  application_id: string;
-  candidate_email: string;
-  resume_id: string;
-  status: string;
-  applied_at: string;
-  match_score: number | null;
-}
-
-function formatDate(dateStr: string): string {
-  try {
-    return new Date(dateStr).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
-  } catch {
-    return dateStr;
-  }
-}
-
-function ScoreBadge({ score }: { score: number | null }) {
-  if (score === null) {
-    return (
-      <span className="font-mono text-xs px-2 py-0.5 rounded-full bg-bg-elevated border border-border-dim text-text-muted">
-        Pending
-      </span>
-    );
-  }
-  const color =
-    score >= 70
-      ? 'bg-[#00E5A0]/10 border-[#00E5A0]/30 text-accent-green'
-      : score >= 40
-      ? 'bg-[#F5A623]/10 border-[#F5A623]/30 text-[#F5A623]'
-      : 'bg-[#F06060]/10 border-[#F06060]/30 text-[#F06060]';
-  return (
-    <span className={`font-mono text-xs px-2 py-0.5 rounded-full border ${color}`}>
-      {score.toFixed(1)}%
-    </span>
-  );
-}
-
-type Tab = 'edit' | 'applicants';
 
 const inputClass =
   'w-full bg-bg-elevated border border-border-dim rounded-lg px-3 py-2.5 text-text-primary text-sm placeholder:text-text-muted outline-none focus:border-border-bright transition-colors';
@@ -64,13 +18,8 @@ export default function EditJobPage() {
   const { id } = useParams<{ id: string }>();
   const toast = useToast();
 
-  const [tab, setTab] = useState<Tab>('edit');
   const [loading, setLoading] = useState(true);
   const [job, setJob] = useState<Job | null>(null);
-
-  const [applicants, setApplicants] = useState<Applicant[]>([]);
-  const [applicantsLoading, setApplicantsLoading] = useState(false);
-  const [applicantsLoaded, setApplicantsLoaded] = useState(false);
 
   const [title, setTitle] = useState('');
   const [company, setCompany] = useState('');
@@ -104,19 +53,6 @@ export default function EditJobPage() {
       })
       .finally(() => setLoading(false));
   }, [id, toast]);
-
-  useEffect(() => {
-    if (tab !== 'applicants' || applicantsLoaded || !id) return;
-    setApplicantsLoading(true);
-    api
-      .get(`/applications/job/${id}`)
-      .then(({ data }) => {
-        setApplicants(data.applicants ?? []);
-        setApplicantsLoaded(true);
-      })
-      .catch((err) => handleApiError(err, toast))
-      .finally(() => setApplicantsLoading(false));
-  }, [tab, applicantsLoaded, id, toast]);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -159,10 +95,19 @@ export default function EditJobPage() {
             {loading ? (
               <div className="h-8 w-48 bg-bg-elevated rounded animate-pulse" />
             ) : job ? (
-              <>
-                <h1 className="text-text-primary font-bold text-2xl">{job.title}</h1>
-                <p className="text-text-secondary text-sm mt-1">{job.company}</p>
-              </>
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h1 className="text-text-primary font-bold text-2xl">{job.title}</h1>
+                  <p className="text-text-secondary text-sm mt-1">{job.company}</p>
+                </div>
+                <Link
+                  href={`/admin/jobs/${id}/applicants`}
+                  className="inline-flex items-center gap-1.5 text-sm text-text-secondary border border-border-dim rounded-lg px-3 py-2 hover:border-border-bright hover:text-text-primary transition-colors shrink-0"
+                >
+                  <Users size={14} />
+                  View Applicants
+                </Link>
+              </div>
             ) : (
               <div className="flex flex-col gap-3 py-12 text-center text-text-muted">
                 <p>Job not found.</p>
@@ -174,213 +119,116 @@ export default function EditJobPage() {
           </div>
 
           {!loading && job && (
-            <>
-              {/* Tabs */}
-              <div className="border-b border-border-dim mb-8">
-                <div className="flex gap-6">
-                  {(
-                    [
-                      { key: 'edit', label: 'Edit Job' },
-                      { key: 'applicants', label: 'Applicants' },
-                    ] as const
-                  ).map(({ key, label }) => (
+            <form
+              onSubmit={handleSubmit}
+              className="bg-bg-surface border border-border-dim rounded-xl p-8 space-y-6"
+            >
+              <div>
+                <label className="block text-text-secondary text-xs font-mono uppercase tracking-wider mb-2">
+                  Job Title <span className="text-accent-red">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  className={inputClass}
+                />
+              </div>
+
+              <div>
+                <label className="block text-text-secondary text-xs font-mono uppercase tracking-wider mb-2">
+                  Company <span className="text-accent-red">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={company}
+                  onChange={(e) => setCompany(e.target.value)}
+                  className={inputClass}
+                />
+              </div>
+
+              <div>
+                <label className="block text-text-secondary text-xs font-mono uppercase tracking-wider mb-2">
+                  Location
+                </label>
+                <input
+                  type="text"
+                  value={location}
+                  onChange={(e) => setLocation(e.target.value)}
+                  className={inputClass}
+                />
+              </div>
+
+              <div>
+                <label className="block text-text-secondary text-xs font-mono uppercase tracking-wider mb-2">
+                  Salary Range
+                </label>
+                <input
+                  type="text"
+                  value={salaryRange}
+                  onChange={(e) => setSalaryRange(e.target.value)}
+                  placeholder="e.g. 80k-120k"
+                  className={inputClass}
+                />
+              </div>
+
+              <div>
+                <label className="block text-text-secondary text-xs font-mono uppercase tracking-wider mb-2">
+                  Description
+                </label>
+                <textarea
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  className={`${inputClass} min-h-32 resize-y`}
+                />
+              </div>
+
+              <div>
+                <label className="block text-text-secondary text-xs font-mono uppercase tracking-wider mb-2">
+                  Required Skills
+                </label>
+                <SkillsTagInput skills={skills} onChange={setSkills} />
+                <p className="text-text-muted text-xs mt-1.5">
+                  Press Enter or comma to add a skill
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-text-secondary text-xs font-mono uppercase tracking-wider mb-3">
+                  Status
+                </label>
+                <div className="flex gap-3 flex-wrap">
+                  {(['active', 'archived', 'draft'] as const).map((s) => (
                     <button
-                      key={key}
-                      onClick={() => setTab(key)}
-                      className={
-                        tab === key
-                          ? 'pb-3 -mb-px border-b-2 border-accent-green text-text-primary text-sm font-medium'
-                          : 'pb-3 -mb-px text-text-secondary hover:text-text-primary text-sm font-medium transition-colors'
-                      }
+                      key={s}
+                      type="button"
+                      onClick={() => setStatus(s)}
+                      className={`px-5 py-2 rounded-lg border font-mono text-sm transition-colors capitalize ${
+                        status === s
+                          ? 'bg-accent-green text-bg-base border-accent-green font-semibold'
+                          : 'bg-bg-elevated border-border-dim text-text-muted hover:border-border-bright'
+                      }`}
                     >
-                      {label}
+                      {s}
                     </button>
                   ))}
                 </div>
               </div>
 
-              {tab === 'edit' ? (
-                <form
-                  onSubmit={handleSubmit}
-                  className="bg-bg-surface border border-border-dim rounded-xl p-8 space-y-6"
+              {error && <p className="text-accent-red text-sm">{error}</p>}
+
+              <div className="flex justify-end pt-2">
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="bg-accent-green text-bg-base font-semibold px-6 py-2.5 rounded-lg text-sm hover:brightness-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <div>
-                    <label className="block text-text-secondary text-xs font-mono uppercase tracking-wider mb-2">
-                      Job Title <span className="text-accent-red">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={title}
-                      onChange={(e) => setTitle(e.target.value)}
-                      className={inputClass}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-text-secondary text-xs font-mono uppercase tracking-wider mb-2">
-                      Company <span className="text-accent-red">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={company}
-                      onChange={(e) => setCompany(e.target.value)}
-                      className={inputClass}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-text-secondary text-xs font-mono uppercase tracking-wider mb-2">
-                      Location
-                    </label>
-                    <input
-                      type="text"
-                      value={location}
-                      onChange={(e) => setLocation(e.target.value)}
-                      className={inputClass}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-text-secondary text-xs font-mono uppercase tracking-wider mb-2">
-                      Salary Range
-                    </label>
-                    <input
-                      type="text"
-                      value={salaryRange}
-                      onChange={(e) => setSalaryRange(e.target.value)}
-                      placeholder="e.g. 80k-120k"
-                      className={inputClass}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-text-secondary text-xs font-mono uppercase tracking-wider mb-2">
-                      Description
-                    </label>
-                    <textarea
-                      value={description}
-                      onChange={(e) => setDescription(e.target.value)}
-                      className={`${inputClass} min-h-32 resize-y`}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-text-secondary text-xs font-mono uppercase tracking-wider mb-2">
-                      Required Skills
-                    </label>
-                    <SkillsTagInput skills={skills} onChange={setSkills} />
-                    <p className="text-text-muted text-xs mt-1.5">
-                      Press Enter or comma to add a skill
-                    </p>
-                  </div>
-
-                  <div>
-                    <label className="block text-text-secondary text-xs font-mono uppercase tracking-wider mb-3">
-                      Status
-                    </label>
-                    <div className="flex gap-3 flex-wrap">
-                      {(['active', 'archived', 'draft'] as const).map((s) => (
-                        <button
-                          key={s}
-                          type="button"
-                          onClick={() => setStatus(s)}
-                          className={`px-5 py-2 rounded-lg border font-mono text-sm transition-colors capitalize ${
-                            status === s
-                              ? 'bg-accent-green text-bg-base border-accent-green font-semibold'
-                              : 'bg-bg-elevated border-border-dim text-text-muted hover:border-border-bright'
-                          }`}
-                        >
-                          {s}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {error && <p className="text-accent-red text-sm">{error}</p>}
-
-                  <div className="flex justify-end pt-2">
-                    <button
-                      type="submit"
-                      disabled={submitting}
-                      className="bg-accent-green text-bg-base font-semibold px-6 py-2.5 rounded-lg text-sm hover:brightness-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {submitting ? 'Saving…' : 'Save Changes'}
-                    </button>
-                  </div>
-                </form>
-              ) : (
-                <div className="bg-bg-surface border border-border-dim rounded-xl overflow-hidden">
-                  {applicantsLoading ? (
-                    <div className="p-6 space-y-3">
-                      {Array.from({ length: 4 }).map((_, i) => (
-                        <Skeleton key={i} className="h-12 w-full" />
-                      ))}
-                    </div>
-                  ) : applicants.length === 0 ? (
-                    <EmptyState
-                      icon={Users}
-                      title="No applicants yet"
-                      subtitle="Applicants will appear here once candidates apply"
-                    />
-                  ) : (
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-sm">
-                        <thead>
-                          <tr className="border-b border-border-dim">
-                            {['Rank', 'Candidate', 'Match Score', 'Status', 'Applied', 'Insights'].map(
-                              (col) => (
-                                <th
-                                  key={col}
-                                  className="px-4 py-3 text-left text-text-muted font-mono text-xs uppercase tracking-wider"
-                                >
-                                  {col}
-                                </th>
-                              )
-                            )}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {applicants.map((applicant, idx) => (
-                            <tr
-                              key={applicant.application_id}
-                              className="border-b border-border-dim last:border-0 hover:bg-bg-elevated transition-colors"
-                            >
-                              <td className="px-4 py-3 text-text-muted font-mono text-xs">
-                                #{idx + 1}
-                              </td>
-                              <td className="px-4 py-3 text-text-primary">
-                                {applicant.candidate_email}
-                              </td>
-                              <td className="px-4 py-3">
-                                <ScoreBadge score={applicant.match_score} />
-                              </td>
-                              <td className="px-4 py-3">
-                                <span className="font-mono text-xs capitalize text-text-secondary">
-                                  {applicant.status}
-                                </span>
-                              </td>
-                              <td className="px-4 py-3 text-text-muted font-mono text-xs whitespace-nowrap">
-                                {formatDate(applicant.applied_at)}
-                              </td>
-                              <td className="px-4 py-3">
-                                <Link
-                                  href={`/insights/${applicant.application_id}?job_id=${id}&resume_id=${applicant.resume_id}`}
-                                  className="text-accent-blue text-xs hover:underline whitespace-nowrap"
-                                >
-                                  View Insights →
-                                </Link>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                </div>
-              )}
-            </>
+                  {submitting ? 'Saving…' : 'Save Changes'}
+                </button>
+              </div>
+            </form>
           )}
         </div>
       </div>
