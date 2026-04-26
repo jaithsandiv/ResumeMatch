@@ -4,6 +4,10 @@ import { useState, useEffect, type CSSProperties } from 'react';
 import Link from 'next/link';
 import { SendHorizontal } from 'lucide-react';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { SkeletonJobCard } from '@/components/ui/Skeleton';
+import api from '@/lib/api';
+import { handleApiError } from '@/lib/apiError';
+import { useToast } from '@/hooks/useToast';
 
 interface StoredApplication {
   application_id: string;
@@ -11,13 +15,13 @@ interface StoredApplication {
   job_title: string;
   company: string;
   resume_id: string;
-  status: 'pending' | 'reviewed' | 'rejected' | 'accepted';
+  status: 'pending' | 'interview' | 'rejected' | 'accepted';
   applied_at: string;
 }
 
 const accentStrip: Record<StoredApplication['status'], string> = {
   pending: 'bg-accent-amber',
-  reviewed: 'bg-accent-blue',
+  interview: 'bg-accent-blue',
   rejected: 'bg-[#F06060]',
   accepted: 'bg-accent-green',
 };
@@ -28,7 +32,7 @@ const statusBadgeStyle: Record<StoredApplication['status'], CSSProperties> = {
     color: '#F5A623',
     border: '1px solid rgb(245 166 35 / 0.3)',
   },
-  reviewed: {
+  interview: {
     backgroundColor: 'rgb(79 142 247 / 0.1)',
     color: '#4F8EF7',
     border: '1px solid rgb(79 142 247 / 0.3)',
@@ -58,18 +62,27 @@ function formatDate(iso: string): string {
 }
 
 export function ApplicationsPanel() {
+  const toast = useToast();
   const [applications, setApplications] = useState<StoredApplication[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    try {
-      const stored = JSON.parse(
-        localStorage.getItem('rm_applications') ?? '[]'
-      ) as StoredApplication[];
-      setApplications(stored);
-    } catch {
-      setApplications([]);
-    }
-  }, []);
+    api
+      .get<{ applications: StoredApplication[] }>('/applications/user')
+      .then(({ data }) => setApplications(data.applications ?? []))
+      .catch((err) => handleApiError(err, toast))
+      .finally(() => setLoading(false));
+  }, [toast]);
+
+  if (loading) {
+    return (
+      <div className="space-y-3">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <SkeletonJobCard key={i} />
+        ))}
+      </div>
+    );
+  }
 
   if (applications.length === 0) {
     return (

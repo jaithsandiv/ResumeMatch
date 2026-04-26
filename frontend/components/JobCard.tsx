@@ -13,6 +13,7 @@ export interface Job {
   salary_range: string;
   status: string;
   created_at: string;
+  applicant_count?: number;
 }
 
 function daysAgo(dateStr: string): string {

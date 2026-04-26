@@ -16,13 +16,21 @@ async def list_jobs():
     Returns a list of all active jobs in the database.
     """
     jobs = list(db.jobs.find({"status": "active"}))
-    
+
+    counts_map = {
+        c["_id"]: c["count"]
+        for c in db.applications.aggregate([
+            {"$group": {"_id": "$job_id", "count": {"$sum": 1}}}
+        ])
+    }
+
     # Convert ObjectId to string for JSON serialization
     for job in jobs:
         job["_id"] = str(job["_id"])
         if "created_at" in job:
             job["created_at"] = job["created_at"].isoformat()
-    
+        job["applicant_count"] = counts_map.get(job["_id"], 0)
+
     return {
         "jobs": jobs,
         "total": len(jobs)

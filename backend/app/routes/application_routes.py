@@ -47,6 +47,39 @@ async def get_job_applicants(
     return {"applicants": result, "total": len(result)}
 
 
+@router.get("/user")
+async def get_user_applications(
+    current_user: dict = Depends(get_current_user),
+):
+    """Return all applications submitted by the current user, with job details."""
+    applications = list(
+        db.applications.find({"candidate_id": current_user["id"]})
+    )
+
+    result = []
+    for app in applications:
+        job_id = app.get("job_id", "")
+        job = None
+        try:
+            job = db.jobs.find_one({"_id": ObjectId(job_id)})
+        except Exception:
+            pass
+
+        applied = app.get("applied_at")
+        result.append({
+            "application_id": str(app["_id"]),
+            "job_id": job_id,
+            "job_title": job.get("title", "") if job else "",
+            "company": job.get("company", "") if job else "",
+            "resume_id": app.get("resume_id", ""),
+            "status": app.get("status", "pending"),
+            "applied_at": applied.isoformat() if applied else "",
+        })
+
+    result.sort(key=lambda x: x["applied_at"], reverse=True)
+    return {"applications": result, "total": len(result)}
+
+
 @router.patch("/{application_id}/status")
 async def update_application_status(
     application_id: str,

@@ -10,21 +10,10 @@ import { useToast } from '@/hooks/useToast';
 import { handleApiError } from '@/lib/apiError';
 import api from '@/lib/api';
 
-interface StoredResume {
-  resume_id: string;
-  filename: string;
-  parse_status: string;
-  uploaded_at: string;
-}
-
-interface StoredApplication {
-  application_id: string;
-  job_id: string;
-  job_title: string;
-  company: string;
-  resume_id: string;
-  status: string;
-  applied_at: string;
+interface UserStats {
+  resume_count: number;
+  application_count: number;
+  avg_match_score: number | null;
 }
 
 function getInitials(name: string): string {
@@ -40,8 +29,11 @@ export default function ProfilePage() {
   const toast = useToast();
   const [user, setUser] = useState(() => getUser());
   const [tab, setTab] = useState<Tab>('resumes');
-  const [resumeCount, setResumeCount] = useState(0);
-  const [appCount, setAppCount] = useState(0);
+  const [stats, setStats] = useState<UserStats>({
+    resume_count: 0,
+    application_count: 0,
+    avg_match_score: null,
+  });
   const [statsLoading, setStatsLoading] = useState(true);
 
   // Edit state
@@ -55,17 +47,23 @@ export default function ProfilePage() {
     confirm_password: '',
   });
 
-  useEffect(() => {
+  const refreshStats = async () => {
     try {
-      const resumes: StoredResume[] = JSON.parse(localStorage.getItem('rm_resumes') ?? '[]');
-      const apps: StoredApplication[] = JSON.parse(localStorage.getItem('rm_applications') ?? '[]');
-      setResumeCount(resumes.length);
-      setAppCount(apps.length);
+      const { data } = await api.get<UserStats>('/users/stats');
+      setStats({
+        resume_count: data.resume_count ?? 0,
+        application_count: data.application_count ?? 0,
+        avg_match_score: data.avg_match_score ?? null,
+      });
     } catch {
-      // ignore parse errors
+      // ignore — stats will fall back to defaults
     } finally {
       setStatsLoading(false);
     }
+  };
+
+  useEffect(() => {
+    refreshStats();
   }, []);
 
   function openEdit() {
@@ -274,9 +272,15 @@ export default function ProfilePage() {
           {statsLoading
             ? Array.from({ length: 3 }).map((_, i) => <SkeletonProfileStat key={i} />)
             : [
-                { label: 'Resumes Uploaded', value: resumeCount },
-                { label: 'Applications Sent', value: appCount },
-                { label: 'Avg Match Score', value: '—' },
+                { label: 'Resumes Uploaded', value: stats.resume_count },
+                { label: 'Applications Sent', value: stats.application_count },
+                {
+                  label: 'Avg Match Score',
+                  value:
+                    stats.avg_match_score == null
+                      ? '—'
+                      : `${Math.round(stats.avg_match_score)}%`,
+                },
               ].map(({ label, value }) => (
                 <div
                   key={label}
@@ -310,7 +314,7 @@ export default function ProfilePage() {
         </div>
 
         {tab === 'resumes' ? (
-          <ResumePanel onResumeCountChange={setResumeCount} />
+          <ResumePanel onResumeCountChange={() => { refreshStats(); }} />
         ) : (
           <ApplicationsPanel />
         )}

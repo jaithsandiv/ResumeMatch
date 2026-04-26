@@ -82,6 +82,39 @@ async def update_profile(update_data: dict, current_user: dict = Depends(get_cur
     }
 
 
+@router.get("/stats")
+async def get_user_stats(current_user: dict = Depends(get_current_user)):
+    """Return per-user counts (resumes, applications) and average match score."""
+    user_id = current_user["id"]
+
+    resume_count = db.resumes.count_documents({"candidate_id": user_id})
+    application_count = db.applications.count_documents({"candidate_id": user_id})
+
+    apps_cursor = db.applications.find(
+        {"candidate_id": user_id},
+        {"job_id": 1, "resume_id": 1, "match_score": 1},
+    )
+    scores: list[float] = []
+    for app in apps_cursor:
+        match = db.match_results.find_one(
+            {"job_id": app.get("job_id"), "resume_id": app.get("resume_id")},
+            {"match_score": 1},
+        )
+        score = match.get("match_score") if match else None
+        if score is None:
+            score = app.get("match_score")
+        if score is not None:
+            scores.append(score)
+
+    avg_match_score = (sum(scores) / len(scores)) if scores else None
+
+    return {
+        "resume_count": resume_count,
+        "application_count": application_count,
+        "avg_match_score": avg_match_score,
+    }
+
+
 @router.get("/admin/list")
 async def list_users(current_admin: dict = Depends(get_current_admin)):
     """Return all users (admin only)."""

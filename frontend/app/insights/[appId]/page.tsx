@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { useSearchParams } from 'next/navigation';
-import { CheckCircle2, Loader2 } from 'lucide-react';
+import { useSearchParams, useRouter } from 'next/navigation';
+import { CheckCircle2, Loader2, ChevronLeft } from 'lucide-react';
 import { MatchScoreCard } from '@/components/insights/MatchScoreCard';
 import { ExplainabilityChart } from '@/components/insights/ExplainabilityChart';
 import { CounterfactualPanel } from '@/components/insights/CounterfactualPanel';
@@ -165,6 +165,7 @@ function ResultPanels({
 
 export default function InsightsPage() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const toast = useToast();
   const jobId = searchParams.get('job_id') ?? '';
   const resumeId = searchParams.get('resume_id') ?? '';
@@ -294,6 +295,13 @@ export default function InsightsPage() {
       <div className="max-w-3xl mx-auto px-6 py-10">
         {/* Header */}
         <div className="mb-8">
+          <button
+            onClick={() => router.back()}
+            className="inline-flex items-center gap-1 text-accent-blue text-sm hover:underline mb-4"
+          >
+            <ChevronLeft className="w-4 h-4" />
+            Back
+          </button>
           <h1
             className="text-text-primary font-semibold text-2xl"
             style={{ fontFamily: 'DM Sans, sans-serif' }}
