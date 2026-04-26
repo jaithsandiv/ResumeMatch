@@ -1,11 +1,49 @@
 from fastapi import APIRouter, HTTPException, status, Depends
 from bson import ObjectId
 from app.database import db
-from app.utils.auth_dependencies import get_current_user
+from app.utils.auth_dependencies import get_current_user, get_current_admin
 from app.services.n8n_trigger import trigger_n8n_workflow
 from datetime import datetime
 
 router = APIRouter()
+
+
+@router.get("/job/{job_id}")
+async def get_job_applicants(
+    job_id: str,
+    current_user: dict = Depends(get_current_admin),
+):
+    """
+    Return all applicants for a job, ranked by match score (desc).
+
+    **Admin only.**  Match scores are pulled from match_results when
+    available, falling back to the score stored on the application itself.
+    """
+    applications = list(db.applications.find({"job_id": job_id}))
+
+    result = []
+    for app in applications:
+        app_id = str(app["_id"])
+        resume_id = app.get("resume_id", "")
+
+        match = db.match_results.find_one({"job_id": job_id, "resume_id": resume_id})
+        match_score = (
+            match.get("match_score") if match else app.get("match_score")
+        )
+
+        applied = app.get("applied_at")
+        result.append({
+            "application_id": app_id,
+            "candidate_id": app.get("candidate_id", ""),
+            "candidate_email": app.get("candidate_email", ""),
+            "resume_id": resume_id,
+            "status": app.get("status", "pending"),
+            "applied_at": applied.isoformat() if applied else "",
+            "match_score": match_score,
+        })
+
+    result.sort(key=lambda x: (x["match_score"] is None, -(x["match_score"] or 0)))
+    return {"applicants": result, "total": len(result)}
 
 
 @router.post("/apply")

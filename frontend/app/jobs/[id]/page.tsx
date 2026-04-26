@@ -60,12 +60,26 @@ export default function JobDetailPage() {
 
   useEffect(() => {
     if (!open) return;
-    try {
-      const stored = localStorage.getItem('rm_resumes');
-      setResumes(stored ? (JSON.parse(stored) as Resume[]) : []);
-    } catch {
-      setResumes([]);
-    }
+    api
+      .get('/resumes/')
+      .then(({ data }) => {
+        setResumes(
+          (data.resumes ?? []).map(
+            (r: { _id: string; original_filename: string }) => ({
+              resume_id: r._id,
+              filename: r.original_filename,
+            })
+          )
+        );
+      })
+      .catch(() => {
+        try {
+          const stored = localStorage.getItem('rm_resumes');
+          setResumes(stored ? (JSON.parse(stored) as Resume[]) : []);
+        } catch {
+          setResumes([]);
+        }
+      });
   }, [open]);
 
   function handleOpenChange(next: boolean) {

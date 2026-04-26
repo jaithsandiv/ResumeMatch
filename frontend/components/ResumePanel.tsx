@@ -97,13 +97,30 @@ export function ResumePanel({ onResumeCountChange }: ResumePanelProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    try {
-      const stored = JSON.parse(localStorage.getItem('rm_resumes') ?? '[]') as StoredResume[];
-      setResumes(stored);
-    } catch {
-      setResumes([]);
-    }
-  }, []);
+    api
+      .get('/resumes/')
+      .then(({ data }) => {
+        const fetched: StoredResume[] = (data.resumes ?? []).map(
+          (r: { _id: string; original_filename: string; parse_status: string; created_at: string }) => ({
+            resume_id: r._id,
+            filename: r.original_filename,
+            parse_status: r.parse_status,
+            uploaded_at: r.created_at,
+          })
+        );
+        setResumes(fetched);
+        localStorage.setItem('rm_resumes', JSON.stringify(fetched));
+        onResumeCountChange?.(fetched.length);
+      })
+      .catch(() => {
+        try {
+          const stored = JSON.parse(localStorage.getItem('rm_resumes') ?? '[]') as StoredResume[];
+          setResumes(stored);
+        } catch {
+          setResumes([]);
+        }
+      });
+  }, [onResumeCountChange]);
 
   function persist(updated: StoredResume[]) {
     localStorage.setItem('rm_resumes', JSON.stringify(updated));

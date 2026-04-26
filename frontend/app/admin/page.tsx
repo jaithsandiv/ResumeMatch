@@ -164,8 +164,13 @@ export default function AdminPage() {
                         key={job._id}
                         className="border-b border-border-dim last:border-0 hover:bg-bg-elevated transition-colors"
                       >
-                        <td className="px-4 py-3 text-text-primary font-medium">
-                          {job.title}
+                        <td className="px-4 py-3">
+                          <Link
+                            href={`/admin/jobs/${job._id}`}
+                            className="text-text-primary font-medium hover:text-accent-blue transition-colors"
+                          >
+                            {job.title}
+                          </Link>
                         </td>
                         <td className="px-4 py-3 text-text-secondary">{job.company}</td>
                         <td className="px-4 py-3">
