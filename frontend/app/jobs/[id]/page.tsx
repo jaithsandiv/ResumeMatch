@@ -13,7 +13,7 @@ import { handleApiError } from '@/lib/apiError';
 import type { Job } from '@/components/JobCard';
 
 interface Resume {
-  _id: string;
+  resume_id: string;
   filename: string;
 }
 
@@ -60,12 +60,26 @@ export default function JobDetailPage() {
 
   useEffect(() => {
     if (!open) return;
-    try {
-      const stored = localStorage.getItem('rm_resumes');
-      setResumes(stored ? (JSON.parse(stored) as Resume[]) : []);
-    } catch {
-      setResumes([]);
-    }
+    api
+      .get('/resumes/')
+      .then(({ data }) => {
+        setResumes(
+          (data.resumes ?? []).map(
+            (r: { _id: string; original_filename: string }) => ({
+              resume_id: r._id,
+              filename: r.original_filename,
+            })
+          )
+        );
+      })
+      .catch(() => {
+        try {
+          const stored = localStorage.getItem('rm_resumes');
+          setResumes(stored ? (JSON.parse(stored) as Resume[]) : []);
+        } catch {
+          setResumes([]);
+        }
+      });
   }, [open]);
 
   function handleOpenChange(next: boolean) {
@@ -86,7 +100,7 @@ export default function JobDetailPage() {
         resume_id: selectedResume,
         cover_letter: coverLetter,
       });
-      const newAppId = data._id ?? data.id ?? '';
+      const newAppId = data.application_id ?? data._id ?? data.id ?? '';
       setAppliedAppId(newAppId);
 
       try {
@@ -241,7 +255,7 @@ export default function JobDetailPage() {
                             >
                               <option value="">— Choose a resume —</option>
                               {resumes.map((r) => (
-                                <option key={r._id} value={r._id}>
+                                <option key={r.resume_id} value={r.resume_id}>
                                   {r.filename}
                                 </option>
                               ))}

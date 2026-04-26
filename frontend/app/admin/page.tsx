@@ -27,6 +27,7 @@ export default function AdminPage() {
   const [jobToDelete, setJobToDelete] = useState<Job | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [stats, setStats] = useState<{ total_resumes: number; total_applications: number; total_users: number } | null>(null);
 
   useEffect(() => {
     api
@@ -35,6 +36,13 @@ export default function AdminPage() {
       .catch((err) => handleApiError(err, toast))
       .finally(() => setLoading(false));
   }, [toast]);
+
+  useEffect(() => {
+    api
+      .get('/auth/admin/stats')
+      .then(({ data }) => setStats(data))
+      .catch(() => {});
+  }, []);
 
   const activeCount = jobs.filter((j) => j.status === 'active').length;
 
@@ -86,9 +94,9 @@ export default function AdminPage() {
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
             {[
               { label: 'Active Jobs', value: loading ? '—' : String(activeCount) },
-              { label: 'Total Resumes', value: '—' },
-              { label: 'Applications', value: '—' },
-              { label: 'Users', value: '—' },
+              { label: 'Total Resumes', value: stats ? String(stats.total_resumes) : '—' },
+              { label: 'Applications', value: stats ? String(stats.total_applications) : '—' },
+              { label: 'Users', value: stats ? String(stats.total_users) : '—' },
             ].map(({ label, value }) => (
               <div
                 key={label}
@@ -156,8 +164,13 @@ export default function AdminPage() {
                         key={job._id}
                         className="border-b border-border-dim last:border-0 hover:bg-bg-elevated transition-colors"
                       >
-                        <td className="px-4 py-3 text-text-primary font-medium">
-                          {job.title}
+                        <td className="px-4 py-3">
+                          <Link
+                            href={`/admin/jobs/${job._id}`}
+                            className="text-text-primary font-medium hover:text-accent-blue transition-colors"
+                          >
+                            {job.title}
+                          </Link>
                         </td>
                         <td className="px-4 py-3 text-text-secondary">{job.company}</td>
                         <td className="px-4 py-3">

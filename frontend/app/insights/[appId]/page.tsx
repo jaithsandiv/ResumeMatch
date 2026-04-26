@@ -36,6 +36,15 @@ interface CounterfactualResult {
   }>;
 }
 
+interface CachedAnalysis {
+  match_score: number;
+  matched_skills: string[];
+  missing_skills: string[];
+  explainability: GraphMatchResult['explainability'];
+  baseline_score: number | null;
+  counterfactuals: CounterfactualResult['counterfactuals'] | null;
+}
+
 // ─── Step tracker ────────────────────────────────────────────────────────────
 
 type StepId = 0 | 1 | 2 | 3;
@@ -121,6 +130,37 @@ function StepTracker({ current, error }: StepTrackerProps) {
   );
 }
 
+// ─── Result panels ───────────────────────────────────────────────────────────
+
+function ResultPanels({
+  graphMatch,
+  counterfactual,
+}: {
+  graphMatch: GraphMatchResult;
+  counterfactual: CounterfactualResult;
+}) {
+  const jobSkillsTotal = graphMatch.matched_skills.length + graphMatch.missing_skills.length;
+  return (
+    <div className="flex flex-col gap-6" style={{ animation: 'fadeIn 0.4s ease-out' }}>
+      <MatchScoreCard
+        match_score={graphMatch.match_score}
+        matched_skills={graphMatch.matched_skills}
+        missing_skills={graphMatch.missing_skills}
+        job_skills_total={jobSkillsTotal}
+      />
+      {graphMatch.explainability.length > 0 && (
+        <ExplainabilityChart explainability={graphMatch.explainability} />
+      )}
+      {counterfactual.counterfactuals.length > 0 && (
+        <CounterfactualPanel
+          counterfactuals={counterfactual.counterfactuals}
+          baseline_score={counterfactual.baseline_score}
+        />
+      )}
+    </div>
+  );
+}
+
 // ─── Main page ───────────────────────────────────────────────────────────────
 
 export default function InsightsPage() {
@@ -129,70 +169,113 @@ export default function InsightsPage() {
   const jobId = searchParams.get('job_id') ?? '';
   const resumeId = searchParams.get('resume_id') ?? '';
 
-  const [step, setStep] = useState<StepId>(0);
+  // Cached / live results
+  const [graphMatch, setGraphMatch] = useState<GraphMatchResult | null>(null);
+  const [counterfactual, setCounterfactual] = useState<CounterfactualResult | null>(null);
   const [complete, setComplete] = useState(false);
+
+  // Live pipeline state (only shown when cache miss)
+  const [loadingCache, setLoadingCache] = useState(true);
+  const [step, setStep] = useState<StepId>(0);
+  const [runningPipeline, setRunningPipeline] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [retryFrom, setRetryFrom] = useState<StepId>(0);
 
-  const [graphMatch, setGraphMatch] = useState<GraphMatchResult | null>(null);
-  const [counterfactual, setCounterfactual] = useState<CounterfactualResult | null>(null);
+  // ── Apply cached analysis to state ────────────────────────────────────────
+  function applyCache(data: CachedAnalysis) {
+    setGraphMatch({
+      match_score: data.match_score,
+      matched_skills: data.matched_skills,
+      missing_skills: data.missing_skills,
+      explainability: data.explainability,
+      job_id: jobId,
+      resume_id: resumeId,
+    });
+    setCounterfactual({
+      baseline_score: data.baseline_score ?? data.match_score,
+      counterfactuals: data.counterfactuals ?? [],
+    });
+    setComplete(true);
+  }
 
-  const runAnalysis = useCallback(async (fromStep: StepId) => {
-    setErrorMsg(null);
-    setComplete(false);
+  // ── Live pipeline (cache miss path) ───────────────────────────────────────
+  const runAnalysis = useCallback(
+    async (fromStep: StepId) => {
+      setErrorMsg(null);
+      setComplete(false);
+      setRunningPipeline(true);
 
-    try {
-      // Step 0 — skill extraction (skip if already done)
-      if (fromStep <= 0) {
-        setStep(0);
-        try {
-          await api.post('/ai/skill-extraction', { resume_id: resumeId });
-        } catch (err: unknown) {
-          const status = (err as { response?: { status?: number } })?.response?.status;
-          // 400 "already extracted" → continue
-          if (status !== 400) throw err;
+      try {
+        // Step 0 — skill extraction
+        if (fromStep <= 0) {
+          setStep(0);
+          try {
+            await api.post('/ai/skill-extraction', { resume_id: resumeId });
+          } catch (err: unknown) {
+            const s = (err as { response?: { status?: number } })?.response?.status;
+            if (s !== 400) throw err; // 400 = "already extracted", continue
+          }
         }
+
+        // Step 1 — graph match
+        if (fromStep <= 1) {
+          setStep(1);
+          const res = await api.post<GraphMatchResult>('/ai/graph-match', {
+            job_id: jobId,
+            resume_id: resumeId,
+          });
+          setGraphMatch(res.data);
+        }
+
+        // Step 2 — counterfactual
+        if (fromStep <= 2) {
+          setStep(2);
+          const res = await api.post<CounterfactualResult>('/ai/counterfactual-analysis', {
+            job_id: jobId,
+            resume_id: resumeId,
+          });
+          setCounterfactual(res.data);
+        }
+
+        setStep(3);
+        setComplete(true);
+      } catch (err: unknown) {
+        const msg =
+          (err as { response?: { data?: { detail?: string; message?: string } } })?.response
+            ?.data?.detail ??
+          (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
+          (err as Error)?.message ??
+          'Unknown error';
+        setErrorMsg(msg);
+        handleApiError(err, toast, { fallback: msg });
+      } finally {
+        setRunningPipeline(false);
       }
+    },
+    [jobId, resumeId, toast]
+  );
 
-      // Step 1 — graph match
-      if (fromStep <= 1) {
-        setStep(1);
-        const res = await api.post<GraphMatchResult>('/ai/graph-match', {
-          job_id: jobId,
-          resume_id: resumeId,
-        });
-        setGraphMatch(res.data);
-      }
-
-      // Step 2 — counterfactual
-      if (fromStep <= 2) {
-        setStep(2);
-        const res = await api.post<CounterfactualResult>('/ai/counterfactual-analysis', {
-          job_id: jobId,
-          resume_id: resumeId,
-        });
-        setCounterfactual(res.data);
-      }
-
-      // Step 3 — done
-      setStep(3);
-      setComplete(true);
-    } catch (err: unknown) {
-      const msg =
-        (err as { response?: { data?: { detail?: string; message?: string } } })?.response?.data
-          ?.detail ??
-        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
-        (err as Error)?.message ??
-        'Unknown error';
-      setErrorMsg(msg);
-      handleApiError(err, toast, { fallback: msg });
-    }
-  }, [jobId, resumeId, toast]);
-
+  // ── On mount: try cache, fall back to live pipeline ───────────────────────
   useEffect(() => {
-    if (jobId && resumeId) {
-      runAnalysis(0);
-    }
+    if (!jobId || !resumeId) return;
+
+    api
+      .get<CachedAnalysis>(`/ai/analysis/${jobId}/${resumeId}`)
+      .then(({ data }) => {
+        // Cache hit — only skip the pipeline if we have both match and counterfactual
+        if (data.match_score != null && data.counterfactuals != null) {
+          applyCache(data);
+          setLoadingCache(false);
+        } else {
+          setLoadingCache(false);
+          runAnalysis(0);
+        }
+      })
+      .catch(() => {
+        // 404 or error — run the live pipeline
+        setLoadingCache(false);
+        runAnalysis(0);
+      });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -200,24 +283,21 @@ export default function InsightsPage() {
     runAnalysis(retryFrom);
   }
 
-  // Track which step to retry from when an error fires
   useEffect(() => {
-    if (errorMsg !== null) {
-      setRetryFrom(step);
-    }
+    if (errorMsg !== null) setRetryFrom(step);
   }, [errorMsg, step]);
 
-  const jobSkillsTotal =
-    graphMatch
-      ? graphMatch.matched_skills.length + graphMatch.missing_skills.length
-      : 0;
+  // ── Render ────────────────────────────────────────────────────────────────
 
   return (
     <div className="min-h-screen bg-bg-base">
       <div className="max-w-3xl mx-auto px-6 py-10">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-text-primary font-semibold text-2xl" style={{ fontFamily: 'DM Sans, sans-serif' }}>
+          <h1
+            className="text-text-primary font-semibold text-2xl"
+            style={{ fontFamily: 'DM Sans, sans-serif' }}
+          >
             Skill Gap Insights
           </h1>
           <p className="text-text-secondary text-sm font-mono mt-1">
@@ -225,7 +305,26 @@ export default function InsightsPage() {
           </p>
         </div>
 
-        <StepTracker current={step} error={errorMsg !== null} />
+        {/* Loading cache check */}
+        {loadingCache && (
+          <div className="flex items-center gap-2 text-text-secondary text-sm font-mono mb-8">
+            <Loader2 size={14} className="animate-spin text-accent-green" />
+            <span>Loading analysis…</span>
+          </div>
+        )}
+
+        {/* Live pipeline UI (only shown when running the pipeline, not on cache hit) */}
+        {!loadingCache && runningPipeline && (
+          <>
+            <StepTracker current={step} error={errorMsg !== null} />
+            {!complete && !errorMsg && (
+              <div className="flex items-center gap-2 text-text-secondary text-sm font-mono mb-8">
+                <Loader2 size={14} className="animate-spin text-accent-green" />
+                <span>Running {STEPS[step]?.label}…</span>
+              </div>
+            )}
+          </>
+        )}
 
         {/* Error banner */}
         {errorMsg && (
@@ -253,38 +352,17 @@ export default function InsightsPage() {
           </div>
         )}
 
-        {/* In-progress label */}
-        {!complete && !errorMsg && (
-          <div className="flex items-center gap-2 text-text-secondary text-sm font-mono mb-8">
-            <Loader2 size={14} className="animate-spin text-accent-green" />
-            <span>Running {STEPS[step]?.label}…</span>
+        {/* Skeleton while pipeline running but no results yet */}
+        {runningPipeline && !complete && !errorMsg && (
+          <div className="flex flex-col gap-6">
+            <SkeletonInsightCard />
+            <SkeletonInsightCard />
           </div>
         )}
 
-        {/* Result panels — fade in on completion */}
+        {/* Results */}
         {complete && graphMatch && counterfactual && (
-          <div
-            className="flex flex-col gap-6"
-            style={{ animation: 'fadeIn 0.4s ease-out' }}
-          >
-            <MatchScoreCard
-              match_score={graphMatch.match_score}
-              matched_skills={graphMatch.matched_skills}
-              missing_skills={graphMatch.missing_skills}
-              job_skills_total={jobSkillsTotal}
-            />
-
-            {graphMatch.explainability.length > 0 && (
-              <ExplainabilityChart explainability={graphMatch.explainability} />
-            )}
-
-            {counterfactual.counterfactuals.length > 0 && (
-              <CounterfactualPanel
-                counterfactuals={counterfactual.counterfactuals}
-                baseline_score={counterfactual.baseline_score}
-              />
-            )}
-          </div>
+          <ResultPanels graphMatch={graphMatch} counterfactual={counterfactual} />
         )}
       </div>
 

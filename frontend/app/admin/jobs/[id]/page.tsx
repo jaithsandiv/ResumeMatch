@@ -3,13 +3,57 @@
 import { useState, useEffect, FormEvent } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ChevronLeft } from 'lucide-react';
+import { ChevronLeft, Users } from 'lucide-react';
 import api from '@/lib/api';
 import { AdminGuard } from '@/components/AdminGuard';
 import { SkillsTagInput } from '@/components/SkillsTagInput';
 import { useToast } from '@/hooks/useToast';
 import { handleApiError } from '@/lib/apiError';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { Skeleton } from '@/components/ui/Skeleton';
 import type { Job } from '@/components/JobCard';
+
+interface Applicant {
+  application_id: string;
+  candidate_email: string;
+  resume_id: string;
+  status: string;
+  applied_at: string;
+  match_score: number | null;
+}
+
+function formatDate(dateStr: string): string {
+  try {
+    return new Date(dateStr).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    });
+  } catch {
+    return dateStr;
+  }
+}
+
+function ScoreBadge({ score }: { score: number | null }) {
+  if (score === null) {
+    return (
+      <span className="font-mono text-xs px-2 py-0.5 rounded-full bg-bg-elevated border border-border-dim text-text-muted">
+        Pending
+      </span>
+    );
+  }
+  const color =
+    score >= 70
+      ? 'bg-[#00E5A0]/10 border-[#00E5A0]/30 text-accent-green'
+      : score >= 40
+      ? 'bg-[#F5A623]/10 border-[#F5A623]/30 text-[#F5A623]'
+      : 'bg-[#F06060]/10 border-[#F06060]/30 text-[#F06060]';
+  return (
+    <span className={`font-mono text-xs px-2 py-0.5 rounded-full border ${color}`}>
+      {score.toFixed(1)}%
+    </span>
+  );
+}
 
 type Tab = 'edit' | 'applicants';
 
@@ -23,6 +67,10 @@ export default function EditJobPage() {
   const [tab, setTab] = useState<Tab>('edit');
   const [loading, setLoading] = useState(true);
   const [job, setJob] = useState<Job | null>(null);
+
+  const [applicants, setApplicants] = useState<Applicant[]>([]);
+  const [applicantsLoading, setApplicantsLoading] = useState(false);
+  const [applicantsLoaded, setApplicantsLoaded] = useState(false);
 
   const [title, setTitle] = useState('');
   const [company, setCompany] = useState('');
@@ -56,6 +104,19 @@ export default function EditJobPage() {
       })
       .finally(() => setLoading(false));
   }, [id, toast]);
+
+  useEffect(() => {
+    if (tab !== 'applicants' || applicantsLoaded || !id) return;
+    setApplicantsLoading(true);
+    api
+      .get(`/applications/job/${id}`)
+      .then(({ data }) => {
+        setApplicants(data.applicants ?? []);
+        setApplicantsLoaded(true);
+      })
+      .catch((err) => handleApiError(err, toast))
+      .finally(() => setApplicantsLoading(false));
+  }, [tab, applicantsLoaded, id, toast]);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -250,11 +311,73 @@ export default function EditJobPage() {
                   </div>
                 </form>
               ) : (
-                <div className="border border-border-dim rounded-xl py-16 text-center">
-                  <p className="text-text-muted font-medium">Applicant tracking coming soon</p>
-                  <p className="text-text-muted text-sm mt-2">
-                    Run /ai/graph-match to compute scores for individual applicants
-                  </p>
+                <div className="bg-bg-surface border border-border-dim rounded-xl overflow-hidden">
+                  {applicantsLoading ? (
+                    <div className="p-6 space-y-3">
+                      {Array.from({ length: 4 }).map((_, i) => (
+                        <Skeleton key={i} className="h-12 w-full" />
+                      ))}
+                    </div>
+                  ) : applicants.length === 0 ? (
+                    <EmptyState
+                      icon={Users}
+                      title="No applicants yet"
+                      subtitle="Applicants will appear here once candidates apply"
+                    />
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b border-border-dim">
+                            {['Rank', 'Candidate', 'Match Score', 'Status', 'Applied', 'Insights'].map(
+                              (col) => (
+                                <th
+                                  key={col}
+                                  className="px-4 py-3 text-left text-text-muted font-mono text-xs uppercase tracking-wider"
+                                >
+                                  {col}
+                                </th>
+                              )
+                            )}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {applicants.map((applicant, idx) => (
+                            <tr
+                              key={applicant.application_id}
+                              className="border-b border-border-dim last:border-0 hover:bg-bg-elevated transition-colors"
+                            >
+                              <td className="px-4 py-3 text-text-muted font-mono text-xs">
+                                #{idx + 1}
+                              </td>
+                              <td className="px-4 py-3 text-text-primary">
+                                {applicant.candidate_email}
+                              </td>
+                              <td className="px-4 py-3">
+                                <ScoreBadge score={applicant.match_score} />
+                              </td>
+                              <td className="px-4 py-3">
+                                <span className="font-mono text-xs capitalize text-text-secondary">
+                                  {applicant.status}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 text-text-muted font-mono text-xs whitespace-nowrap">
+                                {formatDate(applicant.applied_at)}
+                              </td>
+                              <td className="px-4 py-3">
+                                <Link
+                                  href={`/insights/${applicant.application_id}?job_id=${id}&resume_id=${applicant.resume_id}`}
+                                  className="text-accent-blue text-xs hover:underline whitespace-nowrap"
+                                >
+                                  View Insights →
+                                </Link>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
                 </div>
               )}
             </>

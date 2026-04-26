@@ -6,6 +6,7 @@ import Link from 'next/link';
 import api from '@/lib/api';
 import { setToken } from '@/lib/auth';
 import { useToast } from '@/hooks/useToast';
+import Image from 'next/image';
 import { handleApiError } from '@/lib/apiError';
 
 export default function LoginPage() {
@@ -46,7 +47,9 @@ export default function LoginPage() {
     <main className="min-h-screen bg-bg-base flex items-center justify-center px-4">
       <div className="w-full max-w-md bg-bg-surface border border-border-dim rounded-lg p-8">
         <div className="mb-8 text-center">
-          <span className="font-mono text-2xl font-bold text-accent-green">RM</span>
+          <div className="flex justify-center mb-2">
+            <Image src="/logo footer.svg" width={144} height={144} alt="ResumeMatch" />
+          </div>
           <h1 className="mt-2 text-2xl font-semibold text-text-primary font-sans">Sign in</h1>
           <p className="mt-1 text-sm text-text-secondary">Access your ResumeMatch dashboard</p>
         </div>

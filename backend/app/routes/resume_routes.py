@@ -86,6 +86,28 @@ def _safe_delete(path: str) -> None:
 
 
 # ---------------------------------------------------------------------------
+# GET /resumes/
+# ---------------------------------------------------------------------------
+
+@router.get("/")
+async def list_my_resumes(current_user: dict = Depends(get_current_user)):
+    """Return all resumes uploaded by the current user."""
+    raw = list(db.resumes.find({"candidate_id": current_user["id"]}))
+    resumes = []
+    for r in raw:
+        created = r.get("created_at")
+        resumes.append({
+            "_id": str(r["_id"]),
+            "original_filename": r.get("original_filename", ""),
+            "parse_status": r.get("parse_status", ""),
+            "file_size": r.get("file_size", 0),
+            "extracted_skills": r.get("extracted_skills", []),
+            "created_at": created.isoformat() if created else "",
+        })
+    return {"resumes": resumes}
+
+
+# ---------------------------------------------------------------------------
 # POST /resumes/upload
 # ---------------------------------------------------------------------------
 
