@@ -8,6 +8,7 @@ import { setToken } from '@/lib/auth';
 import { useToast } from '@/hooks/useToast';
 import Image from 'next/image';
 import { handleApiError } from '@/lib/apiError';
+import { Home } from 'lucide-react';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -46,6 +47,15 @@ export default function LoginPage() {
   return (
     <main className="min-h-screen bg-bg-base flex items-center justify-center px-4">
       <div className="w-full max-w-md bg-bg-surface border border-border-dim rounded-lg p-8">
+        <div className="flex justify-end mb-2">
+          <Link
+            href="/"
+            className="inline-flex items-center gap-1.5 text-text-muted hover:text-text-secondary text-xs font-mono transition-colors"
+          >
+            <Home size={13} />
+            Homepage
+          </Link>
+        </div>
         <div className="mb-8 text-center">
           <div className="flex justify-center mb-2">
             <Image src="/logo footer.svg" width={144} height={144} alt="ResumeMatch" />

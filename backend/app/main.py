@@ -5,7 +5,7 @@ from app.config import FRONTEND_ORIGIN
 
 # Import routers
 from app.routes import auth_routes, job_routes, resume_routes, application_routes, ai_routes
-from app.routes import internal_routes
+from app.routes import internal_routes, user_routes
 
 # Create FastAPI application
 app = FastAPI(title="ResumeMatch AI Backend")
@@ -28,6 +28,7 @@ app.include_router(resume_routes.router, prefix="/resumes", tags=["Resumes"])
 app.include_router(application_routes.router, prefix="/applications", tags=["Applications"])
 app.include_router(ai_routes.router, prefix="/ai", tags=["AI"])
 app.include_router(internal_routes.router, prefix="/internal", tags=["Internal"])
+app.include_router(user_routes.router, prefix="/users", tags=["Users"])
 
 
 @app.get("/")

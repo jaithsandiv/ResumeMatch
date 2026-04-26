@@ -47,6 +47,43 @@ async def get_job_applicants(
     return {"applicants": result, "total": len(result)}
 
 
+@router.patch("/{application_id}/status")
+async def update_application_status(
+    application_id: str,
+    body: dict,
+    current_user: dict = Depends(get_current_admin),
+):
+    """Update an application's status. **Admin only.**"""
+    new_status = body.get("status")
+    allowed = {"pending", "interview", "rejected"}
+    if new_status not in allowed:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Status must be one of: {', '.join(sorted(allowed))}",
+        )
+
+    try:
+        app_oid = ObjectId(application_id)
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid application_id format",
+        )
+
+    result = db.applications.update_one(
+        {"_id": app_oid},
+        {"$set": {"status": new_status, "status_updated_at": datetime.utcnow()}},
+    )
+
+    if result.matched_count == 0:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Application not found",
+        )
+
+    return {"application_id": application_id, "status": new_status}
+
+
 @router.post("/apply")
 async def apply_to_job(
     application_data: dict,
