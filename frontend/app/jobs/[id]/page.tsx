@@ -13,7 +13,7 @@ import { handleApiError } from '@/lib/apiError';
 import type { Job } from '@/components/JobCard';
 
 interface Resume {
-  _id: string;
+  resume_id: string;
   filename: string;
 }
 
@@ -86,7 +86,7 @@ export default function JobDetailPage() {
         resume_id: selectedResume,
         cover_letter: coverLetter,
       });
-      const newAppId = data._id ?? data.id ?? '';
+      const newAppId = data.application_id ?? data._id ?? data.id ?? '';
       setAppliedAppId(newAppId);
 
       try {
@@ -241,7 +241,7 @@ export default function JobDetailPage() {
                             >
                               <option value="">— Choose a resume —</option>
                               {resumes.map((r) => (
-                                <option key={r._id} value={r._id}>
+                                <option key={r.resume_id} value={r.resume_id}>
                                   {r.filename}
                                 </option>
                               ))}

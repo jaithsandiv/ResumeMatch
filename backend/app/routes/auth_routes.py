@@ -147,11 +147,26 @@ async def get_me(current_user: dict = Depends(get_current_user)):
 async def get_admin_me(current_admin: dict = Depends(get_current_admin)):
     """
     Get current admin user information.
-    
+
     Requires: Valid JWT token with admin role
     Returns: Current admin details
     """
     return {
         "admin": current_admin,
         "message": "You have admin access"
+    }
+
+
+@router.get("/admin/stats")
+async def get_admin_stats(current_admin: dict = Depends(get_current_admin)):
+    """
+    Get platform-wide statistics for the admin dashboard.
+
+    Requires: Valid JWT token with admin role
+    Returns: Counts of resumes, applications, and users
+    """
+    return {
+        "total_resumes": db.resumes.count_documents({}),
+        "total_applications": db.applications.count_documents({}),
+        "total_users": db.users.count_documents({}),
     }
