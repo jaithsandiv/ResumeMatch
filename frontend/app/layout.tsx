@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ToastProvider } from "@/components/ui/Toast";
 import NavbarWrapper from "@/components/layout/NavbarWrapper";
+import FooterWrapper from "@/components/layout/FooterWrapper";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -18,6 +19,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "ResumeMatch",
   description: "AI-powered skill gap analysis for every application",
+  icons: { icon: '/logo.svg' },
 };
 
 export default function RootLayout({
@@ -34,6 +36,7 @@ export default function RootLayout({
         <ToastProvider>
           <NavbarWrapper />
           <main className="pt-16 flex-1 flex flex-col">{children}</main>
+          <FooterWrapper />
         </ToastProvider>
       </body>
     </html>

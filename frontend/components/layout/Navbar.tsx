@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
+import Image from 'next/image';
 import { Menu, X } from 'lucide-react';
 import { clsx } from 'clsx';
 import { getUser, clearToken, isAdmin } from '@/lib/auth';
@@ -66,10 +67,8 @@ export function Navbar() {
       <nav className="fixed top-0 inset-x-0 z-50 h-16 bg-bg-surface border-b border-border-dim">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-full flex items-center justify-between">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2 shrink-0">
-            <span className="text-accent-green font-mono font-bold text-lg leading-none">
-              RM
-            </span>
+          <Link href="/" className="flex items-center gap-2.5 shrink-0">
+            <Image src="/logo.svg" width={30} height={30} alt="ResumeMatch" />
             <span className="font-sans font-semibold text-text-primary text-base">
               ResumeMatch
             </span>

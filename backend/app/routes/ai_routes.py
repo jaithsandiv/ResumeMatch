@@ -18,6 +18,60 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 
+@router.get("/analysis/{job_id}/{resume_id}")
+async def get_cached_analysis(
+    job_id: str,
+    resume_id: str,
+    current_user: dict = Depends(get_current_user),
+):
+    """
+    Return pre-computed match and counterfactual results for a job/resume pair.
+
+    Returns 404 when the analysis has not been run yet (background pipeline
+    still in progress or never triggered).  The frontend uses this to skip the
+    live pipeline when results are already available.
+    """
+    try:
+        resume_obj_id = ObjectId(resume_id)
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid resume_id format")
+
+    resume = db.resumes.find_one({"_id": resume_obj_id})
+    if not resume:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resume not found")
+
+    is_owner = resume.get("candidate_id") == current_user["id"]
+    is_admin = current_user.get("role") == "admin"
+    if not (is_owner or is_admin):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
+
+    match_result = db.match_results.find_one(
+        {"job_id": job_id, "resume_id": resume_id},
+        sort=[("created_at", -1)],
+    )
+    if not match_result:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No cached analysis found for this job/resume pair",
+        )
+
+    counterfactual = db.counterfactual_results.find_one(
+        {"job_id": job_id, "resume_id": resume_id},
+        sort=[("created_at", -1)],
+    )
+
+    return {
+        "job_id": job_id,
+        "resume_id": resume_id,
+        "match_score": match_result.get("match_score"),
+        "matched_skills": match_result.get("matched_skills", []),
+        "missing_skills": match_result.get("missing_skills", []),
+        "explainability": match_result.get("explainability", []),
+        "baseline_score": counterfactual.get("baseline_score") if counterfactual else None,
+        "counterfactuals": counterfactual.get("counterfactuals") if counterfactual else None,
+    }
+
+
 @router.post("/match-preview")
 async def match_preview(match_data: dict):
     """
@@ -272,19 +326,25 @@ async def graph_match_skills(
         missing_skills = graph_rag.get_missing_skills()
         explainability = graph_rag.get_explainability()
         
-        # Store result in MongoDB
-        match_result = {
-            "job_id": request.job_id,
-            "candidate_id": resume.get("candidate_id", ""),
-            "resume_id": request.resume_id,
-            "match_score": match_score,
-            "matched_skills": matched_skills,
-            "missing_skills": missing_skills,
-            "explainability": explainability,
-            "created_at": datetime.utcnow()
-        }
-        
-        result = db.match_results.insert_one(match_result)
+        # Upsert result so re-runs overwrite stale data instead of duplicating
+        now = datetime.utcnow()
+        db.match_results.update_one(
+            {"job_id": request.job_id, "resume_id": request.resume_id},
+            {
+                "$set": {
+                    "job_id": request.job_id,
+                    "candidate_id": resume.get("candidate_id", ""),
+                    "resume_id": request.resume_id,
+                    "match_score": match_score,
+                    "matched_skills": matched_skills,
+                    "missing_skills": missing_skills,
+                    "explainability": explainability,
+                    "updated_at": now,
+                },
+                "$setOnInsert": {"created_at": now},
+            },
+            upsert=True,
+        )
         
         # Log the match
         logger.info(
@@ -492,7 +552,15 @@ async def counterfactual_analysis(
     }
 
     try:
-        db.counterfactual_results.insert_one(persistence_doc)
+        # Upsert so re-runs replace stale data instead of duplicating
+        db.counterfactual_results.update_one(
+            {"job_id": request.job_id, "resume_id": request.resume_id},
+            {
+                "$set": persistence_doc,
+                "$setOnInsert": {"created_at": persistence_doc["created_at"]},
+            },
+            upsert=True,
+        )
     except Exception as exc:
         # Non-fatal: log and continue rather than failing the response
         logger.error(
