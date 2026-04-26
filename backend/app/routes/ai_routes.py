@@ -605,6 +605,9 @@ class N8nCallbackPayload(BaseModel):
     match_score: float
     missing_skills: List[str] = []
     counterfactuals: List[dict] = []
+    explainability: List[dict] = []
+    application_id: Optional[str] = None
+    candidate_id: Optional[str] = None
 
 
 @router.post("/n8n/callback", status_code=status.HTTP_200_OK)
@@ -678,20 +681,31 @@ async def n8n_callback(
 
     now = datetime.utcnow()
 
+    # Resolve candidate_id from the resume document if the workflow didn't include it
+    resume_doc = db.resumes.find_one({"_id": resume_obj_id})
+    candidate_id = payload.candidate_id or (resume_doc.get("candidate_id", "") if resume_doc else "")
+
     # ------------------------------------------------------------------
-    # 2. Persist match result
+    # 2. Persist match result (upsert to avoid duplicates with the local
+    #    background pipeline writing to the same job_id/resume_id pair)
     # ------------------------------------------------------------------
-    match_doc = {
+    match_set = {
         "resume_id": payload.resume_id,
         "job_id": payload.job_id,
+        "candidate_id": candidate_id,
         "match_score": payload.match_score,
         "missing_skills": payload.missing_skills,
+        "explainability": payload.explainability,
         "source": "n8n_callback",
-        "created_at": now,
+        "updated_at": now,
     }
 
     try:
-        db.match_results.insert_one(match_doc)
+        db.match_results.update_one(
+            {"job_id": payload.job_id, "resume_id": payload.resume_id},
+            {"$set": match_set, "$setOnInsert": {"created_at": now}},
+            upsert=True,
+        )
         logger.info(
             "Match result stored — resume_id=%s job_id=%s",
             payload.resume_id, payload.job_id,
@@ -707,20 +721,41 @@ async def n8n_callback(
         )
 
     # ------------------------------------------------------------------
+    # 2b. Write the score back to the application doc when supplied so the
+    #     admin applicants ranking reflects the n8n result.
+    # ------------------------------------------------------------------
+    if payload.application_id:
+        try:
+            db.applications.update_one(
+                {"_id": ObjectId(payload.application_id)},
+                {"$set": {"match_score": payload.match_score}},
+            )
+        except Exception as exc:
+            logger.warning(
+                "Could not update application score — application_id=%s error=%s",
+                payload.application_id, exc,
+            )
+
+    # ------------------------------------------------------------------
     # 3. Persist counterfactual results (if present)
     # ------------------------------------------------------------------
     if payload.counterfactuals:
-        cf_doc = {
+        cf_set = {
             "resume_id": payload.resume_id,
             "job_id": payload.job_id,
-            "match_score": payload.match_score,
+            "candidate_id": candidate_id,
+            "baseline_score": payload.match_score,
             "counterfactuals": payload.counterfactuals,
             "source": "n8n_callback",
-            "created_at": now,
+            "updated_at": now,
         }
 
         try:
-            db.counterfactual_results.insert_one(cf_doc)
+            db.counterfactual_results.update_one(
+                {"job_id": payload.job_id, "resume_id": payload.resume_id},
+                {"$set": cf_set, "$setOnInsert": {"created_at": now}},
+                upsert=True,
+            )
             logger.info(
                 "Counterfactual results stored — resume_id=%s job_id=%s count=%d",
                 payload.resume_id, payload.job_id, len(payload.counterfactuals),

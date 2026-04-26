@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import * as Dialog from '@radix-ui/react-dialog';
-import { ChevronLeft, ChevronDown, ChevronUp, X } from 'lucide-react';
+import { ChevronLeft, ChevronDown, ChevronUp, X, Users } from 'lucide-react';
 import api from '@/lib/api';
 import { getUser } from '@/lib/auth';
 import { SkillTag } from '@/components/ui/SkillTag';
@@ -176,10 +176,20 @@ export default function JobDetailPage() {
           {/* ── Left column ── */}
           <div className="flex-1 min-w-0">
             <h1 className="text-text-primary font-bold text-2xl mb-2">{job.title}</h1>
-            <div className="flex items-center gap-2 text-text-secondary text-sm mb-8">
+            <div className="flex items-center gap-2 text-text-secondary text-sm mb-4">
               <span>{job.company}</span>
               <span className="text-text-muted">·</span>
               <span className="font-mono text-text-muted text-xs">{job.location}</span>
+            </div>
+            <div className="mb-8">
+              <span
+                title="Total applicants for this role"
+                className="inline-flex items-center gap-1.5 bg-bg-elevated border border-border-dim text-text-secondary text-xs font-mono px-2.5 py-1 rounded-full"
+              >
+                <Users className="w-3.5 h-3.5 text-accent-blue" />
+                {job.applicant_count ?? 0}{' '}
+                {(job.applicant_count ?? 0) === 1 ? 'applicant' : 'applicants'}
+              </span>
             </div>
 
             <section className="mb-8">
