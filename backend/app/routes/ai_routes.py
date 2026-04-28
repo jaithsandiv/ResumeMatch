@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, Depends, status, Header
 from app.database import db
-from app.services.graph_rag_engine import SkillGraphRAG
+from app.services.graph_rag_engine import SkillGraphRAG, compute_skill_weights
 from app.services.skill_extractor import extract_skills
 from app.services.counterfactual_engine import CounterfactualEngine
 from app.utils.auth_dependencies import get_current_user
@@ -311,17 +311,20 @@ async def graph_match_skills(
     
     # Build Graph-RAG engine for this match
     try:
+        job_description = job.get("description", "")
+        skill_weights = compute_skill_weights(job_description, job_skills)
+
         graph_rag = SkillGraphRAG(similarity_threshold=0.6)
-        
+
         # Add skills to graph
         graph_rag.add_job_skills(request.job_id, job_skills)
         graph_rag.add_candidate_skills(request.resume_id, candidate_skills)
-        
+
         # Connect skills based on similarity
         graph_rag.connect_skills()
-        
+
         # Compute match results
-        match_score = graph_rag.compute_match_score()
+        match_score = graph_rag.compute_match_score(skill_weights=skill_weights)
         matched_skills = graph_rag.get_matched_skills()
         missing_skills = graph_rag.get_missing_skills()
         explainability = graph_rag.get_explainability()

@@ -8,42 +8,160 @@ and candidate skills.
 
 import networkx as nx
 from typing import List, Dict
+from sentence_transformers import SentenceTransformer, util as st_util
+
+
+_model: SentenceTransformer | None = None
+_sim_cache: dict[tuple[str, str], float] = {}
+
+
+def _get_model() -> SentenceTransformer:
+    global _model
+    if _model is None:
+        _model = SentenceTransformer("all-MiniLM-L6-v2")
+    return _model
 
 
 def semantic_similarity(skill_a: str, skill_b: str) -> float:
-    """
-    Compute semantic similarity between two skill strings.
-    
-    This is a placeholder implementation that will be replaced with 
-    embeddings-based similarity in the future.
-    
-    Args:
-        skill_a: First skill string
-        skill_b: Second skill string
-        
-    Returns:
-        Similarity score between 0.0 and 1.0
-        - 1.0: Exact match (case-insensitive)
-        - 0.7: Partial match (one skill contains the other)
-        - 0.0: No match
-    """
     if not skill_a or not skill_b:
         return 0.0
-    
-    # Normalize to lowercase for comparison
-    skill_a_lower = skill_a.lower().strip()
-    skill_b_lower = skill_b.lower().strip()
-    
-    # Exact match
-    if skill_a_lower == skill_b_lower:
-        return 1.0
-    
-    # Partial match (substring detection)
-    if skill_a_lower in skill_b_lower or skill_b_lower in skill_a_lower:
-        return 0.7
-    
-    # No match
-    return 0.0
+    key = (min(skill_a, skill_b).lower(), max(skill_a, skill_b).lower())
+    if key in _sim_cache:
+        return _sim_cache[key]
+    model = _get_model()
+    emb = model.encode([skill_a, skill_b], convert_to_tensor=True, show_progress_bar=False)
+    score = float(st_util.cos_sim(emb[0], emb[1]))
+    result = round(max(0.0, score), 4)
+    _sim_cache[key] = result
+    return result
+
+
+SKILL_ALIAS_MAP: dict[str, str] = {
+    "js": "javascript",
+    "ts": "typescript",
+    "node": "node.js",
+    "nodejs": "node.js",
+    "react.js": "react",
+    "reactjs": "react",
+    "vue.js": "vue",
+    "vuejs": "vue",
+    "postgres": "postgresql",
+    "mongo": "mongodb",
+    "k8s": "kubernetes",
+    "py": "python",
+    "ml": "machine learning",
+    "dl": "deep learning",
+    "ai": "artificial intelligence",
+    "rest api": "rest apis",
+    "rest": "rest apis",
+    "graphql api": "graphql",
+    "aws cloud": "aws",
+    "gcp": "google cloud",
+    "nosql": "mongodb",
+    "scss": "css",
+    "sass": "css",
+    "expressjs": "express",
+    "express.js": "express",
+    "nextjs": "next.js",
+    "nuxtjs": "nuxt",
+    "sklearn": "scikit-learn",
+    "scikit learn": "scikit-learn",
+    "tf": "tensorflow",
+    "pytorch": "pytorch",
+    "unit test": "unit testing",
+    "unit tests": "unit testing",
+    "pytest": "unit testing",
+    "junit": "unit testing",
+    "jest": "unit testing",
+    "ci cd": "ci/cd",
+    "ci/cd pipeline": "ci/cd",
+    "vcs": "git",
+    "github": "git",
+    "gitlab": "git",
+}
+
+
+def normalise_skill(skill: str) -> str:
+    key = skill.lower().strip()
+    return SKILL_ALIAS_MAP.get(key, skill.strip())
+
+
+REQUIRED_MARKERS = {"required", "must have", "must", "essential", "mandatory", "expert", "proficient", "strong"}
+PREFERRED_MARKERS = {"preferred", "nice to have", "bonus", "optional", "familiar", "desirable", "advantageous"}
+
+
+def compute_skill_weights(description: str, skills: list[str]) -> dict[str, float]:
+    """
+    Assign a weight 0.6–1.0 to each job skill based on proximity to
+    required/preferred language in the job description.
+    Defaults to 0.85 when no signal is found.
+    """
+    desc_lower = description.lower()
+    weights: dict[str, float] = {}
+    for skill in skills:
+        skill_lower = skill.lower()
+        idx = desc_lower.find(skill_lower)
+        if idx >= 0:
+            window = desc_lower[max(0, idx - 60): idx + 60]
+        else:
+            window = ""
+        if any(m in window for m in REQUIRED_MARKERS):
+            weights[skill] = 1.0
+        elif any(m in window for m in PREFERRED_MARKERS):
+            weights[skill] = 0.6
+        else:
+            weights[skill] = 0.85
+    return weights
+
+
+SKILL_ONTOLOGY: dict[str, list[str]] = {
+    "docker": ["containerisation", "devops"],
+    "kubernetes": ["container orchestration", "devops"],
+    "react": ["frontend development", "javascript"],
+    "vue": ["frontend development", "javascript"],
+    "angular": ["frontend development", "typescript"],
+    "next.js": ["frontend development", "react", "javascript"],
+    "fastapi": ["backend development", "python", "rest apis"],
+    "django": ["backend development", "python"],
+    "flask": ["backend development", "python"],
+    "express": ["backend development", "node.js", "javascript"],
+    "spring boot": ["backend development", "java"],
+    "node.js": ["backend development", "javascript"],
+    "postgresql": ["databases", "sql"],
+    "mysql": ["databases", "sql"],
+    "mongodb": ["databases", "nosql"],
+    "redis": ["databases", "caching"],
+    "pytorch": ["machine learning", "deep learning", "python"],
+    "tensorflow": ["machine learning", "deep learning", "python"],
+    "scikit-learn": ["machine learning", "python"],
+    "aws": ["cloud computing", "devops"],
+    "azure": ["cloud computing", "devops"],
+    "google cloud": ["cloud computing", "devops"],
+    "terraform": ["infrastructure as code", "devops"],
+    "ci/cd": ["devops", "automation"],
+    "git": ["version control"],
+    "linux": ["operating systems", "devops"],
+    "unit testing": ["testing", "software quality"],
+    "rest apis": ["api development", "backend development"],
+    "graphql": ["api development", "backend development"],
+    "sql": ["databases", "data"],
+    "python": ["programming"],
+    "java": ["programming"],
+    "javascript": ["programming"],
+    "typescript": ["programming", "javascript"],
+}
+
+
+def expand_via_ontology(skills: list[str]) -> list[str]:
+    """
+    Return the original skill list plus one level of parent categories
+    from the ontology. Deduplicates. Original skills preserved exactly.
+    """
+    expanded: set[str] = set(skills)
+    for skill in skills:
+        parents = SKILL_ONTOLOGY.get(normalise_skill(skill).lower(), [])
+        expanded.update(parents)
+    return list(expanded)
 
 
 class SkillGraphRAG:
@@ -85,8 +203,8 @@ class SkillGraphRAG:
         for skill in skills:
             if not skill or not skill.strip():
                 continue
-            
-            skill_normalized = skill.strip()
+
+            skill_normalized = normalise_skill(skill)
             node_id = f"job_{job_id}_{skill_normalized}"
             
             # Avoid duplicate nodes
@@ -113,8 +231,8 @@ class SkillGraphRAG:
         for skill in skills:
             if not skill or not skill.strip():
                 continue
-            
-            skill_normalized = skill.strip()
+
+            skill_normalized = normalise_skill(skill)
             node_id = f"candidate_{candidate_id}_{skill_normalized}"
             
             # Avoid duplicate nodes
@@ -151,10 +269,10 @@ class SkillGraphRAG:
                         weight=similarity
                     )
     
-    def compute_match_score(self) -> float:
+    def compute_match_score(self, skill_weights: dict[str, float] | None = None) -> float:
         """
         Compute overall match score between job and candidate.
-        
+
         Returns:
             Match score normalized to 0-100 scale
             - Based on average edge weight of matched skills
@@ -162,7 +280,7 @@ class SkillGraphRAG:
         """
         if not self.job_skills_list:
             return 0.0
-        
+
         # Get all edges and their weights
         edges_with_weights = []
         for job_skill in self.job_skills_list:
@@ -172,7 +290,7 @@ class SkillGraphRAG:
                         job_skill["node_id"],
                         candidate_skill["node_id"]
                     )
-                    weight = edge_data.get("weight", 0.0)
+                    weight = edge_data.get("weight", 0.0) * (skill_weights or {}).get(job_skill["skill_name"], 1.0)
                     edges_with_weights.append(weight)
         
         if not edges_with_weights:
@@ -190,10 +308,23 @@ class SkillGraphRAG:
                     break
         
         coverage = len(matched_job_skills) / len(self.job_skills_list) if self.job_skills_list else 0.0
-        
-        # Weighted score: 70% coverage + 30% average similarity
-        final_score = (coverage * 0.7 + avg_similarity * 0.3) * 100
-        
+
+        # Precision: fraction of candidate skills that are actually relevant.
+        # Penalises keyword-stuffed resumes that pad real matches with noise.
+        matched_candidate_node_ids: set[str] = set()
+        for job_skill in self.job_skills_list:
+            for candidate_skill in self.candidate_skills_list:
+                if self.graph.has_edge(job_skill["node_id"], candidate_skill["node_id"]):
+                    matched_candidate_node_ids.add(candidate_skill["node_id"])
+
+        precision = (
+            len(matched_candidate_node_ids) / len(self.candidate_skills_list)
+            if self.candidate_skills_list else 0.0
+        )
+
+        # 60% coverage + 25% average similarity + 15% precision
+        final_score = (coverage * 0.6 + avg_similarity * 0.25 + precision * 0.15) * 100
+
         return round(final_score, 2)
     
     def get_missing_skills(self) -> List[str]:
