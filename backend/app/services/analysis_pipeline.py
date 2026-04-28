@@ -89,13 +89,18 @@ def run_full_analysis(job_id: str, resume_id: str, application_id: str) -> None:
         logger.warning("run_full_analysis: job has no required_skills job_id=%s", job_id)
         return
 
+    from app.services.graph_rag_engine import compute_skill_weights
+
+    job_description = job.get("description", "")
+    skill_weights = compute_skill_weights(job_description, job_skills)
+
     try:
         graph_rag = SkillGraphRAG(similarity_threshold=0.6)
         graph_rag.add_job_skills(job_id, job_skills)
         graph_rag.add_candidate_skills(resume_id, candidate_skills)
         graph_rag.connect_skills()
 
-        match_score = graph_rag.compute_match_score()
+        match_score = graph_rag.compute_match_score(skill_weights=skill_weights)
         matched_skills = graph_rag.get_matched_skills()
         missing_skills = graph_rag.get_missing_skills()
         explainability = graph_rag.get_explainability()
