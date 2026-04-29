@@ -260,7 +260,7 @@ async def get_resume_text(
     return {
         "resume_id": resume_id,
         "parse_status": resume.get("parse_status", "unknown"),
-        "text_preview": parsed_text[:1000],
+        "text_preview": parsed_text[:6000],
         "total_characters": len(parsed_text),
     }
 

@@ -44,7 +44,11 @@ def extract_text_from_pdf(filepath: str) -> str:
         
         if not combined_text.strip():
             raise Exception("No text content found in PDF")
-        
+
+        logger.info(
+            "PDF extraction complete — %s pages, %d characters extracted",
+            len(pdf.pages), len(combined_text)
+        )
         return combined_text.strip()
     
     except Exception as e:
@@ -72,7 +76,11 @@ def extract_text_from_docx(filepath: str) -> str:
         
         if not text.strip():
             raise Exception("No text content found in DOCX")
-        
+
+        logger.info(
+            "DOCX extraction complete — %d characters extracted",
+            len(text)
+        )
         return text.strip()
     
     except Exception as e:

@@ -65,13 +65,18 @@ class SkillExtractionError(Exception):
 def extract_skills_llm(text: str) -> List[str]:
     """
     Extract professional skills from text using OpenAI LLM.
-    
+
+    Model: gpt-5.4-mini
+    Maximum input: 24000 characters
+    Maximum output tokens: 3000
+    Timeout: 90 seconds
+
     Args:
         text: Resume text to extract skills from
-        
+
     Returns:
         List of extracted skill names
-        
+
     Raises:
         SkillExtractionError: If LLM extraction fails or returns invalid output
     """
@@ -93,7 +98,7 @@ Requirements:
 - No explanations, no sentences, ONLY the JSON array
 
 Resume Text:
-{text[:4000]}
+{text[:24000]}
 
 Output format example: ["Python", "FastAPI", "Docker", "AWS"]
 
@@ -102,7 +107,7 @@ JSON Array:"""
     try:
         # Call OpenAI API
         response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
+            model="gpt-5.4-mini",
             messages=[
                 {
                     "role": "system",
@@ -114,8 +119,8 @@ JSON Array:"""
                 }
             ],
             temperature=0.3,
-            max_tokens=500,
-            timeout=30
+            max_completion_tokens=3000,
+            timeout=90
         )
         
         # Extract response content

@@ -533,6 +533,7 @@ async def counterfactual_analysis(
     # 9. Persist results in MongoDB counterfactual_results collection
     # ------------------------------------------------------------------
     candidate_id = resume.get("candidate_id", "")
+    now = datetime.utcnow()
     persistence_doc = {
         "job_id": request.job_id,
         "candidate_id": candidate_id,
@@ -547,7 +548,7 @@ async def counterfactual_analysis(
             }
             for cf in counterfactuals
         ],
-        "created_at": datetime.utcnow(),
+        "updated_at": now,
     }
 
     try:
@@ -556,7 +557,7 @@ async def counterfactual_analysis(
             {"job_id": request.job_id, "resume_id": request.resume_id},
             {
                 "$set": persistence_doc,
-                "$setOnInsert": {"created_at": persistence_doc["created_at"]},
+                "$setOnInsert": {"created_at": now},
             },
             upsert=True,
         )
