@@ -163,7 +163,20 @@ JOBS = [
 ]
 
 
+def _resolve_default_owner_id() -> str | None:
+    """Return the System Administrator user id, if one exists."""
+    sysadmin = db.users.find_one({"role": "system_administrator"})
+    if sysadmin:
+        return str(sysadmin["_id"])
+    legacy = db.users.find_one({"email": "admin@example.com"})
+    return str(legacy["_id"]) if legacy else None
+
+
 def seed_jobs():
+    owner_id = _resolve_default_owner_id()
+    if not owner_id:
+        print("Warning: no System Administrator found — seed_admin.py first to assign job ownership.")
+
     inserted = 0
     skipped = 0
 
@@ -174,6 +187,8 @@ def seed_jobs():
             skipped += 1
             continue
 
+        if owner_id:
+            job["created_by"] = owner_id
         db.jobs.insert_one(job)
         print(f"  added {job['title']} @ {job['company']}")
         inserted += 1

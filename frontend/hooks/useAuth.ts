@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
-import { setToken, clearToken, getUser } from '@/lib/auth';
+import { setToken, clearToken, getUser, isAdmin } from '@/lib/auth';
 
 interface AuthUser {
   id: string;
@@ -23,7 +23,7 @@ export function useAuth() {
       const { data } = await api.post('/auth/login', { email, password });
       setToken(data.access_token);
       setUser(getUser());
-      router.push('/profile');
+      router.push(isAdmin() ? '/admin' : '/profile');
     } catch (err: unknown) {
       const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
       const message = detail ?? 'Login failed';
@@ -41,7 +41,7 @@ export function useAuth() {
       const { data } = await api.post('/auth/register', { name, email, password });
       setToken(data.access_token);
       setUser(getUser());
-      router.push('/profile');
+      router.push(isAdmin() ? '/admin' : '/profile');
     } catch (err: unknown) {
       const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
       const message = detail ?? 'Registration failed';

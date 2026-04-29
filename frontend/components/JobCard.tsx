@@ -13,6 +13,7 @@ export interface Job {
   salary_range: string;
   status: string;
   created_at: string;
+  created_by?: string;
   applicant_count?: number;
 }
 

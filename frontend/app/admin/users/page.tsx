@@ -16,7 +16,7 @@ interface User {
   id: string;
   email: string;
   full_name: string;
-  role: 'admin' | 'visitor';
+  role: 'admin' | 'visitor' | 'system_administrator';
 }
 
 function getInitials(name: string): string {
@@ -90,7 +90,9 @@ export default function AdminUsersPage() {
     }
   }
 
-  const adminCount = users.filter((u) => u.role === 'admin').length;
+  const adminCount = users.filter(
+    (u) => u.role === 'admin' || u.role === 'system_administrator'
+  ).length;
 
   return (
     <AdminGuard>
@@ -160,6 +162,9 @@ export default function AdminUsersPage() {
                   <tbody>
                     {users.map((u) => {
                       const isSelf = u.id === currentUser?.id;
+                      const isSysAdminRow = u.role === 'system_administrator';
+                      const viewerIsSysAdmin = currentUser?.role === 'system_administrator';
+                      const canManage = !isSelf && (!isSysAdminRow || viewerIsSysAdmin);
                       return (
                         <tr
                           key={u.id}
@@ -196,31 +201,39 @@ export default function AdminUsersPage() {
                           <td className="px-4 py-3">
                             <span
                               className={`inline-block font-mono text-xs px-2.5 py-1 rounded-full border ${
-                                u.role === 'admin'
+                                isSysAdminRow
+                                  ? 'bg-accent-blue/10 border-accent-blue/30 text-accent-blue'
+                                  : u.role === 'admin'
                                   ? 'bg-[#00E5A0]/10 border-[#00E5A0]/30 text-accent-green'
                                   : 'bg-bg-elevated border-border-dim text-text-muted'
                               }`}
                             >
-                              {u.role === 'admin' ? 'Admin' : 'Visitor'}
+                              {isSysAdminRow
+                                ? 'System Admin'
+                                : u.role === 'admin'
+                                ? 'Admin'
+                                : 'Visitor'}
                             </span>
                           </td>
 
                           {/* Actions */}
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-3">
-                              {!isSelf && (
+                              {canManage && (
                                 <>
-                                  <button
-                                    onClick={() => setUserToToggle(u)}
-                                    className="text-text-muted hover:text-text-secondary transition-colors"
-                                    title={u.role === 'admin' ? 'Demote to visitor' : 'Promote to admin'}
-                                  >
-                                    {u.role === 'admin' ? (
-                                      <ShieldOff size={15} />
-                                    ) : (
-                                      <ShieldCheck size={15} />
-                                    )}
-                                  </button>
+                                  {!isSysAdminRow && (
+                                    <button
+                                      onClick={() => setUserToToggle(u)}
+                                      className="text-text-muted hover:text-text-secondary transition-colors"
+                                      title={u.role === 'admin' ? 'Demote to visitor' : 'Promote to admin'}
+                                    >
+                                      {u.role === 'admin' ? (
+                                        <ShieldOff size={15} />
+                                      ) : (
+                                        <ShieldCheck size={15} />
+                                      )}
+                                    </button>
+                                  )}
                                   <button
                                     onClick={() => setUserToDelete(u)}
                                     className="text-text-muted hover:text-accent-red transition-colors"

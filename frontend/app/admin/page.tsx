@@ -11,6 +11,7 @@ import { handleApiError } from '@/lib/apiError';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Skeleton } from '@/components/ui/Skeleton';
 import type { Job } from '@/components/JobCard';
+import { isSystemAdmin } from '@/lib/auth';
 
 function formatDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString('en-US', {
@@ -31,11 +32,13 @@ export default function AdminPage() {
 
   useEffect(() => {
     api
-      .get('/jobs/')
+      .get('/jobs/admin/list')
       .then(({ data }) => setJobs(data.jobs ?? []))
       .catch((err) => handleApiError(err, toast))
       .finally(() => setLoading(false));
   }, [toast]);
+
+  const sysAdmin = isSystemAdmin();
 
   useEffect(() => {
     api
@@ -84,7 +87,7 @@ export default function AdminPage() {
           <div className="max-w-6xl mx-auto flex items-center gap-4">
             <h1 className="text-text-primary font-bold text-xl">Admin Panel</h1>
             <span className="bg-[#00E5A0]/10 border border-[#00E5A0]/30 text-accent-green font-mono text-xs px-2.5 py-1 rounded-full">
-              System Administrator
+              {sysAdmin ? 'System Administrator' : 'Administrator'}
             </span>
           </div>
         </div>
@@ -96,7 +99,7 @@ export default function AdminPage() {
               { label: 'Active Jobs', value: loading ? '—' : String(activeCount), href: null },
               { label: 'Total Resumes', value: stats ? String(stats.total_resumes) : '—', href: null },
               { label: 'Applications', value: stats ? String(stats.total_applications) : '—', href: null },
-              { label: 'Users', value: stats ? String(stats.total_users) : '—', href: '/admin/users' },
+              { label: 'Users', value: stats ? String(stats.total_users) : '—', href: sysAdmin ? '/admin/users' : null },
             ].map(({ label, value, href }) => {
               const inner = (
                 <>

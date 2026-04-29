@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ChevronLeft, Users, Pencil } from 'lucide-react';
+import { ChevronLeft, Users, Pencil, Download } from 'lucide-react';
 import api from '@/lib/api';
 import { AdminGuard } from '@/components/AdminGuard';
 import { useToast } from '@/hooks/useToast';
@@ -78,14 +78,12 @@ export default function JobApplicantsPage() {
   const [applicants, setApplicants] = useState<Applicant[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<Record<string, boolean>>({});
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
   useEffect(() => {
     api
-      .get('/jobs/')
-      .then(({ data }) => {
-        const found: Job | undefined = (data.jobs ?? []).find((j: Job) => j._id === id);
-        setJob(found ?? null);
-      })
+      .get(`/jobs/admin/${id}`)
+      .then(({ data }) => setJob(data.job ?? null))
       .catch(() => setJob(null))
       .finally(() => setJobLoading(false));
   }, [id]);
@@ -98,6 +96,18 @@ export default function JobApplicantsPage() {
       .catch((err) => handleApiError(err, toast))
       .finally(() => setLoading(false));
   }, [id, toast]);
+
+  async function handleDownloadResume(resumeId: string) {
+    setDownloadingId(resumeId);
+    try {
+      const { data } = await api.get(`/resumes/${resumeId}/download-url`);
+      window.open(data.url, '_blank', 'noopener,noreferrer');
+    } catch (err) {
+      handleApiError(err, toast, { fallback: 'Download failed' });
+    } finally {
+      setDownloadingId(null);
+    }
+  }
 
   async function handleStatusUpdate(applicationId: string, newStatus: string) {
     setActionLoading((prev) => ({ ...prev, [applicationId]: true }));
@@ -188,7 +198,7 @@ export default function JobApplicantsPage() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-border-dim">
-                      {['Rank', 'Candidate', 'Match Score', 'Status', 'Applied', 'Insights', 'Actions'].map(
+                      {['Rank', 'Candidate', 'Match Score', 'Status', 'Applied', 'Insights', 'Resume', 'Actions'].map(
                         (col) => (
                           <th
                             key={col}
@@ -230,6 +240,17 @@ export default function JobApplicantsPage() {
                           </Link>
                         </td>
                         <td className="px-4 py-3">
+                          <button
+                            onClick={() => handleDownloadResume(applicant.resume_id)}
+                            disabled={downloadingId === applicant.resume_id}
+                            title="Download Resume"
+                            className="flex items-center gap-1 text-accent-blue border border-accent-blue/40 hover:bg-accent-blue/10 hover:border-accent-blue/70 transition-colors text-xs px-2 py-1 rounded disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
+                          >
+                            <Download className="w-3.5 h-3.5" />
+                            Download
+                          </button>
+                        </td>
+                        <td className="px-4 py-3">
                           <div className="flex gap-1.5">
                             <button
                               onClick={() =>
@@ -241,8 +262,8 @@ export default function JobApplicantsPage() {
                               disabled={actionLoading[applicant.application_id]}
                               className={`text-xs px-2.5 py-1 rounded-md border font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
                                 applicant.status === 'interview'
-                                  ? 'bg-accent-green/15 border-accent-green/40 text-accent-green'
-                                  : 'bg-bg-elevated border-border-dim text-text-muted hover:border-accent-green/60 hover:text-accent-green'
+                                  ? 'bg-accent-green/25 border-accent-green/60 text-accent-green'
+                                  : 'bg-accent-green/10 border-accent-green/35 text-accent-green hover:bg-accent-green/20 hover:border-accent-green/60'
                               }`}
                             >
                               Interview
@@ -257,8 +278,8 @@ export default function JobApplicantsPage() {
                               disabled={actionLoading[applicant.application_id]}
                               className={`text-xs px-2.5 py-1 rounded-md border font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
                                 applicant.status === 'rejected'
-                                  ? 'bg-accent-red/15 border-accent-red/40 text-accent-red'
-                                  : 'bg-bg-elevated border-border-dim text-text-muted hover:border-accent-red/60 hover:text-accent-red'
+                                  ? 'bg-accent-red/25 border-accent-red/60 text-accent-red'
+                                  : 'bg-accent-red/10 border-accent-red/35 text-accent-red hover:bg-accent-red/20 hover:border-accent-red/60'
                               }`}
                             >
                               Reject

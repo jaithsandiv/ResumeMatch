@@ -33,10 +33,10 @@ export default function EditJobPage() {
 
   useEffect(() => {
     api
-      .get('/jobs/')
+      .get(`/jobs/admin/${id}`)
       .then(({ data }) => {
-        const found: Job | undefined = (data.jobs ?? []).find((j: Job) => j._id === id);
-        setJob(found ?? null);
+        const found: Job | null = data.job ?? null;
+        setJob(found);
         if (found) {
           setTitle(found.title);
           setCompany(found.company);

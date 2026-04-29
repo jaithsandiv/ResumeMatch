@@ -7,7 +7,7 @@ No local file paths are stored in MongoDB.
 
 from fastapi import APIRouter, UploadFile, File, HTTPException, status, Depends
 from app.database import db
-from app.utils.auth_dependencies import get_current_user
+from app.utils.auth_dependencies import get_current_user, is_admin
 from app.services.resume_parser import extract_text
 from app.services.storage_service import StorageService
 from app.services.n8n_trigger import trigger_n8n_workflow
@@ -65,8 +65,7 @@ def _fetch_resume_with_access(resume_id: str, current_user: dict) -> dict:
         )
 
     is_owner = resume.get("candidate_id") == current_user["id"]
-    is_admin = current_user.get("role") == "admin"
-    if not (is_owner or is_admin):
+    if not (is_owner or is_admin(current_user)):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Access denied: you can only access your own resumes.",
