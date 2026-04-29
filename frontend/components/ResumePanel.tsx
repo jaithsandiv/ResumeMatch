@@ -339,7 +339,7 @@ export function ResumePanel({ onResumeCountChange }: ResumePanelProps) {
                 <button
                   onClick={() => handlePreview(resume.resume_id)}
                   title="Preview Text"
-                  className="flex items-center gap-1 text-text-muted hover:text-accent-blue transition-colors text-xs px-2 py-1 rounded border border-border-dim hover:border-accent-blue/50"
+                  className="flex items-center gap-1 text-accent-blue border border-accent-blue/40 hover:bg-accent-blue/10 hover:border-accent-blue/70 transition-colors text-xs px-2 py-1 rounded"
                 >
                   <Eye className="w-3.5 h-3.5" />
                   Preview Text
@@ -347,7 +347,7 @@ export function ResumePanel({ onResumeCountChange }: ResumePanelProps) {
                 <button
                   onClick={() => handleDownload(resume.resume_id)}
                   title="Download"
-                  className="flex items-center gap-1 text-text-muted hover:text-accent-blue transition-colors text-xs px-2 py-1 rounded border border-border-dim hover:border-accent-blue/50"
+                  className="flex items-center gap-1 text-accent-blue border border-accent-blue/40 hover:bg-accent-blue/10 hover:border-accent-blue/70 transition-colors text-xs px-2 py-1 rounded"
                 >
                   <Download className="w-3.5 h-3.5" />
                   Download
@@ -356,7 +356,7 @@ export function ResumePanel({ onResumeCountChange }: ResumePanelProps) {
                   onClick={() => handleExtractSkills(resume.resume_id)}
                   disabled={extractingId === resume.resume_id}
                   title="Extract Skills"
-                  className="flex items-center gap-1 text-text-muted hover:text-accent-green transition-colors text-xs px-2 py-1 rounded border border-border-dim hover:border-accent-green/50 disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="flex items-center gap-1 text-accent-green border border-accent-green/40 hover:bg-accent-green/10 hover:border-accent-green/70 transition-colors text-xs px-2 py-1 rounded disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   {extractingId === resume.resume_id ? (
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -369,7 +369,7 @@ export function ResumePanel({ onResumeCountChange }: ResumePanelProps) {
                   onClick={() => setConfirmDeleteId(resume.resume_id)}
                   disabled={deletingId === resume.resume_id}
                   title="Delete"
-                  className="flex items-center gap-1 text-text-muted transition-colors text-xs px-2 py-1 rounded border border-border-dim hover:text-accent-red hover:border-accent-red/50 disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="flex items-center gap-1 text-accent-red border border-accent-red/40 hover:bg-accent-red/10 hover:border-accent-red/70 transition-colors text-xs px-2 py-1 rounded disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   {deletingId === resume.resume_id ? (
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />

@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import api from '@/lib/api';
-import { setToken } from '@/lib/auth';
+import { setToken, getUser } from '@/lib/auth';
 import { useToast } from '@/hooks/useToast';
 import Image from 'next/image';
 import { handleApiError } from '@/lib/apiError';
@@ -26,7 +26,8 @@ export default function LoginPage() {
       const { data } = await api.post('/auth/login', { email, password });
       setToken(data.access_token);
       toast.success('Signed in');
-      router.push('/profile');
+      const user = getUser();
+      router.push(user?.role === 'admin' ? '/admin' : '/profile');
     } catch (err: unknown) {
       const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
       const status = (err as { response?: { status?: number } })?.response?.status;

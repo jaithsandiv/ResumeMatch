@@ -117,6 +117,37 @@ async def update_application_status(
     return {"application_id": application_id, "status": new_status}
 
 
+@router.delete("/{application_id}")
+async def delete_application(
+    application_id: str,
+    current_user: dict = Depends(get_current_user),
+):
+    """Delete an application submitted by the current user."""
+    try:
+        app_oid = ObjectId(application_id)
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid application_id format",
+        )
+
+    application = db.applications.find_one({"_id": app_oid})
+    if not application:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Application not found",
+        )
+
+    if application.get("candidate_id") != current_user["id"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You can only delete your own applications",
+        )
+
+    db.applications.delete_one({"_id": app_oid})
+    return {"message": "Application deleted successfully", "application_id": application_id}
+
+
 @router.post("/apply")
 async def apply_to_job(
     application_data: dict,
