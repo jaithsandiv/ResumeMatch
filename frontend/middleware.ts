@@ -31,13 +31,15 @@ export function middleware(req: NextRequest) {
   if (isAuthRoute && token) {
     const url = req.nextUrl.clone();
     const role = decodeRole(token);
-    url.pathname = role === 'admin' ? '/admin' : '/profile';
+    const isAdmin = role === 'admin' || role === 'system_administrator';
+    url.pathname = isAdmin ? '/admin' : '/profile';
     return NextResponse.redirect(url);
   }
 
   if (isAdminRoute && token) {
     const role = decodeRole(token);
-    if (role !== 'admin') {
+    const isAdmin = role === 'admin' || role === 'system_administrator';
+    if (!isAdmin) {
       const url = req.nextUrl.clone();
       url.pathname = '/profile';
       return NextResponse.redirect(url);

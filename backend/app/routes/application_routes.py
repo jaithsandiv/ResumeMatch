@@ -1,12 +1,33 @@
 from fastapi import APIRouter, HTTPException, status, Depends, BackgroundTasks
 from bson import ObjectId
 from app.database import db
-from app.utils.auth_dependencies import get_current_user, get_current_admin
+from app.utils.auth_dependencies import (
+    get_current_user,
+    get_current_admin,
+    assert_can_manage_job,
+)
 from app.services.n8n_trigger import trigger_n8n_workflow
 from app.services.analysis_pipeline import run_full_analysis
 from datetime import datetime
 
 router = APIRouter()
+
+
+def _load_job_or_404(job_id: str) -> dict:
+    try:
+        oid = ObjectId(job_id)
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid job ID format",
+        )
+    job = db.jobs.find_one({"_id": oid})
+    if not job:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Job not found",
+        )
+    return job
 
 
 @router.get("/job/{job_id}")
@@ -17,9 +38,14 @@ async def get_job_applicants(
     """
     Return all applicants for a job, ranked by match score (desc).
 
-    **Admin only.**  Match scores are pulled from match_results when
-    available, falling back to the score stored on the application itself.
+    **Admin only.**  Regular admins must own the job; system administrators
+    can view applicants for any job.  Match scores are pulled from
+    match_results when available, falling back to the score stored on the
+    application itself.
     """
+    job = _load_job_or_404(job_id)
+    assert_can_manage_job(current_user, job)
+
     applications = list(db.applications.find({"job_id": job_id}))
 
     result = []
@@ -103,16 +129,22 @@ async def update_application_status(
             detail="Invalid application_id format",
         )
 
-    result = db.applications.update_one(
-        {"_id": app_oid},
-        {"$set": {"status": new_status, "status_updated_at": datetime.utcnow()}},
-    )
-
-    if result.matched_count == 0:
+    application = db.applications.find_one({"_id": app_oid})
+    if not application:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Application not found",
         )
+
+    # Ownership check: regular admins can only update applications for jobs
+    # they personally own; system admins bypass this.
+    job = _load_job_or_404(application.get("job_id", ""))
+    assert_can_manage_job(current_user, job)
+
+    db.applications.update_one(
+        {"_id": app_oid},
+        {"$set": {"status": new_status, "status_updated_at": datetime.utcnow()}},
+    )
 
     return {"application_id": application_id, "status": new_status}
 

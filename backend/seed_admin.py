@@ -1,6 +1,13 @@
 """
-Seed script to create a default admin user in MongoDB.
-Run this script after setting up the database and environment variables.
+Seed script to create the default System Administrator user in MongoDB.
+
+Also migrates legacy data so ownership-based access control works correctly:
+  - Promotes the existing ``admin@example.com`` user to ``system_administrator``
+    if it was previously seeded with the old ``admin`` role.
+  - Backfills ``created_by`` on every job document missing it, assigning the
+    System Administrator as the default owner.
+
+Run after setting up the database and environment variables.
 """
 
 import os
@@ -14,45 +21,67 @@ load_dotenv()
 # Password hashing context
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
+SYSTEM_ADMIN_EMAIL = "admin@example.com"
+SYSTEM_ADMIN_ROLE = "system_administrator"
 
-def seed_admin():
+
+def _ensure_system_admin() -> str | None:
     """
-    Create a default admin user if it doesn't exist.
-    Password is read from ADMIN_PASSWORD environment variable.
+    Ensure the default System Administrator account exists with the
+    ``system_administrator`` role.  Returns the user's id (string), or None
+    if the operation could not be completed.
     """
-    # Get admin password from environment
+    existing = db.users.find_one({"email": SYSTEM_ADMIN_EMAIL})
+
+    if existing:
+        # Promote legacy admin to system_administrator if needed.
+        if existing.get("role") != SYSTEM_ADMIN_ROLE:
+            db.users.update_one(
+                {"_id": existing["_id"]},
+                {"$set": {"role": SYSTEM_ADMIN_ROLE}},
+            )
+            print(f"✓ Promoted {SYSTEM_ADMIN_EMAIL} to {SYSTEM_ADMIN_ROLE}")
+        else:
+            print(f"System Administrator already exists: {SYSTEM_ADMIN_EMAIL}")
+        return str(existing["_id"])
+
     admin_password = os.getenv("ADMIN_PASSWORD")
-    
     if not admin_password:
         print("ERROR: ADMIN_PASSWORD environment variable is not set")
         print("Please set ADMIN_PASSWORD in your .env file")
-        return
-    
-    # Check if admin already exists
-    existing_admin = db.users.find_one({"email": "admin@example.com"})
-    
-    if existing_admin:
-        print("Admin user already exists with email: admin@example.com")
-        return
-    
-    # Hash the password
+        return None
+
     hashed_password = pwd_context.hash(admin_password)
-    
-    # Create admin user document
     admin_user = {
-        "email": "admin@example.com",
+        "email": SYSTEM_ADMIN_EMAIL,
         "password": hashed_password,
         "full_name": "System Administrator",
-        "role": "admin"
+        "role": SYSTEM_ADMIN_ROLE,
     }
-    
-    # Insert into database
     result = db.users.insert_one(admin_user)
-    
-    print(f"✓ Admin user created successfully")
-    print(f"  Email: admin@example.com")
-    print(f"  Role: admin")
-    print(f"  User ID: {result.inserted_id}")
+    print(f"✓ System Administrator created — {SYSTEM_ADMIN_EMAIL} (id={result.inserted_id})")
+    return str(result.inserted_id)
+
+
+def _backfill_job_ownership(default_owner_id: str) -> None:
+    """Assign the default owner to every job missing a ``created_by`` field."""
+    if not default_owner_id:
+        return
+
+    result = db.jobs.update_many(
+        {"$or": [{"created_by": {"$exists": False}}, {"created_by": None}, {"created_by": ""}]},
+        {"$set": {"created_by": default_owner_id}},
+    )
+    if result.modified_count:
+        print(f"✓ Backfilled created_by on {result.modified_count} job(s) → {default_owner_id}")
+    else:
+        print("All jobs already have an owner — no backfill needed.")
+
+
+def seed_admin() -> None:
+    owner_id = _ensure_system_admin()
+    if owner_id:
+        _backfill_job_ownership(owner_id)
 
 
 if __name__ == "__main__":

@@ -82,11 +82,8 @@ export default function JobApplicantsPage() {
 
   useEffect(() => {
     api
-      .get('/jobs/')
-      .then(({ data }) => {
-        const found: Job | undefined = (data.jobs ?? []).find((j: Job) => j._id === id);
-        setJob(found ?? null);
-      })
+      .get(`/jobs/admin/${id}`)
+      .then(({ data }) => setJob(data.job ?? null))
       .catch(() => setJob(null))
       .finally(() => setJobLoading(false));
   }, [id]);

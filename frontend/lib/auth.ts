@@ -46,5 +46,10 @@ export function getUser(): JWTPayload | null {
 }
 
 export function isAdmin(): boolean {
-  return getUser()?.role === 'admin';
+  const role = getUser()?.role;
+  return role === 'admin' || role === 'system_administrator';
+}
+
+export function isSystemAdmin(): boolean {
+  return getUser()?.role === 'system_administrator';
 }

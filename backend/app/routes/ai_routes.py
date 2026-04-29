@@ -3,7 +3,7 @@ from app.database import db
 from app.services.graph_rag_engine import SkillGraphRAG, compute_skill_weights
 from app.services.skill_extractor import extract_skills
 from app.services.counterfactual_engine import CounterfactualEngine
-from app.utils.auth_dependencies import get_current_user
+from app.utils.auth_dependencies import get_current_user, is_admin
 from app.models.match_result import MatchResultDocument, MatchExplainability
 from app.config import N8N_SHARED_SECRET
 from bson import ObjectId
@@ -41,8 +41,7 @@ async def get_cached_analysis(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resume not found")
 
     is_owner = resume.get("candidate_id") == current_user["id"]
-    is_admin = current_user.get("role") == "admin"
-    if not (is_owner or is_admin):
+    if not (is_owner or is_admin(current_user)):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
 
     match_result = db.match_results.find_one(
@@ -171,9 +170,8 @@ async def extract_resume_skills(
     
     # Check access control
     is_owner = resume.get("candidate_id") == current_user["id"]
-    is_admin = current_user.get("role") == "admin"
-    
-    if not (is_owner or is_admin):
+
+    if not (is_owner or is_admin(current_user)):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Access denied: You can only extract skills from your own resumes"
@@ -285,9 +283,8 @@ async def graph_match_skills(
     
     # Check access control
     is_owner = resume.get("candidate_id") == current_user["id"]
-    is_admin = current_user.get("role") == "admin"
-    
-    if not (is_owner or is_admin):
+
+    if not (is_owner or is_admin(current_user)):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Access denied: You can only match your own resumes"
@@ -452,10 +449,9 @@ async def counterfactual_analysis(
     # ------------------------------------------------------------------
     # 4. Access control: admin OR resume owner only
     # ------------------------------------------------------------------
-    is_admin = current_user.get("role") == "admin"
     is_owner = resume.get("candidate_id") == current_user["id"]
 
-    if not (is_admin or is_owner):
+    if not (is_admin(current_user) or is_owner):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Access denied: you can only request counterfactual analysis for your own resumes"

@@ -2,7 +2,12 @@ from fastapi import APIRouter, HTTPException, status, Depends
 from passlib.context import CryptContext
 from bson import ObjectId
 from app.database import db
-from app.utils.auth_dependencies import get_current_user, get_current_admin
+from app.utils.auth_dependencies import (
+    get_current_user,
+    get_current_admin,
+    is_system_admin,
+    ROLE_SYSTEM_ADMIN,
+)
 from app.utils.jwt_utils import create_access_token
 
 router = APIRouter()
@@ -136,7 +141,8 @@ async def list_users(current_admin: dict = Depends(get_current_admin)):
 async def update_user_role(
     user_id: str, role_data: dict, current_admin: dict = Depends(get_current_admin)
 ):
-    """Promote or demote a user (admin only)."""
+    """Promote or demote a user (admin only).  System administrators cannot
+    have their role changed via this endpoint."""
     new_role = role_data.get("role")
     if new_role not in ("admin", "visitor"):
         raise HTTPException(
@@ -153,8 +159,15 @@ async def update_user_role(
     if not target:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
+    # System administrators are immutable via the standard role toggle.
+    if target.get("role") == ROLE_SYSTEM_ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="System administrators cannot be demoted via this endpoint.",
+        )
+
     if new_role == "visitor" and target.get("role") == "admin":
-        admin_count = db.users.count_documents({"role": "admin"})
+        admin_count = db.users.count_documents({"role": {"$in": ["admin", ROLE_SYSTEM_ADMIN]}})
         if admin_count <= 1:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -182,6 +195,13 @@ async def delete_user(user_id: str, current_admin: dict = Depends(get_current_ad
     user = db.users.find_one({"_id": oid})
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    # Only a system administrator may delete another system administrator.
+    if user.get("role") == ROLE_SYSTEM_ADMIN and not is_system_admin(current_admin):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only a system administrator can delete another system administrator.",
+        )
 
     db.resumes.delete_many({"candidate_id": user_id})
     db.applications.delete_many({"candidate_id": user_id})
