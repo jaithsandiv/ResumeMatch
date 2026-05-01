@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, status, Depends
 from passlib.context import CryptContext
 from app.database import db
 from app.utils.jwt_utils import create_access_token
-from app.utils.auth_dependencies import get_current_user, get_current_admin
+from app.utils.auth_dependencies import get_current_user, get_current_admin, is_system_admin
 
 router = APIRouter()
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -162,13 +162,39 @@ async def get_admin_me(current_admin: dict = Depends(get_current_admin)):
 @router.get("/admin/stats")
 async def get_admin_stats(current_admin: dict = Depends(get_current_admin)):
     """
-    Get platform-wide statistics for the admin dashboard.
+    Statistics for the admin dashboard.
 
-    Requires: Valid JWT token with admin role
-    Returns: Counts of resumes, applications, and users
+    System administrators see platform-wide totals (resumes, applications,
+    users).  Regular admins see counts scoped to jobs they personally own —
+    they have no visibility into other admins' applicants or the full user
+    base.
     """
+    if is_system_admin(current_admin):
+        return {
+            "total_resumes": db.resumes.count_documents({}),
+            "total_applications": db.applications.count_documents({}),
+            "total_users": db.users.count_documents({}),
+        }
+
+    owned_job_ids = [
+        str(j["_id"])
+        for j in db.jobs.find({"created_by": current_admin["id"]}, {"_id": 1})
+    ]
+
+    if not owned_job_ids:
+        return {
+            "total_resumes": 0,
+            "total_applications": 0,
+        }
+
+    total_applications = db.applications.count_documents(
+        {"job_id": {"$in": owned_job_ids}}
+    )
+    distinct_resume_ids = db.applications.distinct(
+        "resume_id", {"job_id": {"$in": owned_job_ids}}
+    )
+
     return {
-        "total_resumes": db.resumes.count_documents({}),
-        "total_applications": db.applications.count_documents({}),
-        "total_users": db.users.count_documents({}),
+        "total_resumes": len(distinct_resume_ids),
+        "total_applications": total_applications,
     }

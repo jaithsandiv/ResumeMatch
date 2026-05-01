@@ -28,7 +28,7 @@ export default function AdminPage() {
   const [jobToDelete, setJobToDelete] = useState<Job | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [togglingId, setTogglingId] = useState<string | null>(null);
-  const [stats, setStats] = useState<{ total_resumes: number; total_applications: number; total_users: number } | null>(null);
+  const [stats, setStats] = useState<{ total_resumes: number; total_applications: number; total_users?: number } | null>(null);
 
   useEffect(() => {
     api
@@ -94,12 +94,14 @@ export default function AdminPage() {
 
         <div className="max-w-6xl mx-auto px-6 py-8">
           {/* Stats row */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
+          <div className={`grid grid-cols-2 ${sysAdmin ? 'lg:grid-cols-4' : 'lg:grid-cols-3'} gap-4 mb-10`}>
             {[
               { label: 'Active Jobs', value: loading ? '—' : String(activeCount), href: null },
               { label: 'Total Resumes', value: stats ? String(stats.total_resumes) : '—', href: null },
               { label: 'Applications', value: stats ? String(stats.total_applications) : '—', href: null },
-              { label: 'Users', value: stats ? String(stats.total_users) : '—', href: sysAdmin ? '/admin/users' : null },
+              ...(sysAdmin
+                ? [{ label: 'Users', value: stats?.total_users != null ? String(stats.total_users) : '—', href: '/admin/users' as string | null }]
+                : []),
             ].map(({ label, value, href }) => {
               const inner = (
                 <>
