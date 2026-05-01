@@ -3,7 +3,7 @@
 import { useState, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ChevronLeft } from 'lucide-react';
+import { ChevronLeft, Sparkles } from 'lucide-react';
 import api from '@/lib/api';
 import { AdminGuard } from '@/components/AdminGuard';
 import { SkillsTagInput } from '@/components/SkillsTagInput';
@@ -25,7 +25,34 @@ export default function NewJobPage() {
   const [skills, setSkills] = useState<string[]>([]);
   const [status, setStatus] = useState<'active' | 'draft'>('active');
   const [submitting, setSubmitting] = useState(false);
+  const [extracting, setExtracting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  async function handleExtractSkills() {
+    if (!description.trim()) {
+      toast.error('Add a job description before extracting skills');
+      return;
+    }
+    setExtracting(true);
+    try {
+      const { data } = await api.post('/ai/extract-skills-from-text', {
+        text: description,
+      });
+      const extracted: string[] = Array.isArray(data?.skills) ? data.skills : [];
+      const existing = new Set(skills.map((s) => s.toLowerCase()));
+      const additions = extracted.filter((s) => !existing.has(s.toLowerCase()));
+      if (additions.length > 0) {
+        setSkills([...skills, ...additions]);
+        toast.success(`Added ${additions.length} skill${additions.length === 1 ? '' : 's'}`);
+      } else {
+        toast.info('No new skills found in description');
+      }
+    } catch (err: unknown) {
+      handleApiError(err, toast, { fallback: 'Failed to extract skills' });
+    } finally {
+      setExtracting(false);
+    }
+  }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -139,12 +166,23 @@ export default function NewJobPage() {
             </div>
 
             <div>
-              <label className="block text-text-secondary text-xs font-mono uppercase tracking-wider mb-2">
-                Required Skills
-              </label>
+              <div className="flex items-center justify-between mb-2 gap-2">
+                <label className="block text-text-secondary text-xs font-mono uppercase tracking-wider">
+                  Required Skills
+                </label>
+                <button
+                  type="button"
+                  onClick={handleExtractSkills}
+                  disabled={extracting || !description.trim()}
+                  className="inline-flex items-center gap-1.5 text-xs font-mono text-accent-blue border border-accent-blue/30 bg-accent-blue/10 rounded-lg px-2.5 py-1 hover:bg-accent-blue/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Sparkles size={12} />
+                  {extracting ? 'Extracting…' : 'Extract from Description'}
+                </button>
+              </div>
               <SkillsTagInput skills={skills} onChange={setSkills} />
               <p className="text-text-muted text-xs mt-1.5">
-                Press Enter or comma to add a skill
+                Press Enter or comma to add a skill, or extract them from the description
               </p>
             </div>
 

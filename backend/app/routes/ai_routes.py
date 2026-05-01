@@ -3,7 +3,7 @@ from app.database import db
 from app.services.graph_rag_engine import SkillGraphRAG, compute_skill_weights
 from app.services.skill_extractor import extract_skills
 from app.services.counterfactual_engine import CounterfactualEngine
-from app.utils.auth_dependencies import get_current_user, is_admin
+from app.utils.auth_dependencies import get_current_user, get_current_admin, is_admin
 from app.models.match_result import MatchResultDocument, MatchExplainability
 from app.config import N8N_SHARED_SECRET
 from bson import ObjectId
@@ -130,6 +130,51 @@ async def match_preview(match_data: dict):
 # Request model for skill extraction
 class SkillExtractionRequest(BaseModel):
     resume_id: str
+
+
+class JobTextSkillExtractionRequest(BaseModel):
+    text: str
+
+
+@router.post("/extract-skills-from-text")
+async def extract_skills_from_text(
+    request: JobTextSkillExtractionRequest,
+    current_admin: dict = Depends(get_current_admin),
+):
+    """
+    Extract professional skills from arbitrary text — used by the admin job
+    creation/edit UI to suggest required skills from a job description.
+
+    Admin-only.
+    """
+    text = (request.text or "").strip()
+    if not text:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Text is required for skill extraction",
+        )
+
+    try:
+        result = extract_skills(text)
+        skills = result["skills"]
+        method = result["method"]
+
+        logger.info(
+            f"Extracted {len(skills)} skills from job text using {method} "
+            f"for admin {current_admin['id']}"
+        )
+
+        return {
+            "skills": skills,
+            "skill_count": len(skills),
+            "extraction_method": method,
+        }
+    except Exception as e:
+        logger.error(f"Skill extraction from text failed: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Skill extraction failed. Please try again later.",
+        )
 
 
 @router.post("/skill-extraction")
