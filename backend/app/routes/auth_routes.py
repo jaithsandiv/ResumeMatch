@@ -174,6 +174,7 @@ async def get_admin_stats(current_admin: dict = Depends(get_current_admin)):
             "total_resumes": db.resumes.count_documents({}),
             "total_applications": db.applications.count_documents({}),
             "total_users": db.users.count_documents({}),
+            "unread_messages": db.contact_messages.count_documents({"read": {"$ne": True}}),
         }
 
     owned_job_ids = [

@@ -28,7 +28,12 @@ export default function AdminPage() {
   const [jobToDelete, setJobToDelete] = useState<Job | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [togglingId, setTogglingId] = useState<string | null>(null);
-  const [stats, setStats] = useState<{ total_resumes: number; total_applications: number; total_users?: number } | null>(null);
+  const [stats, setStats] = useState<{
+    total_resumes: number;
+    total_applications: number;
+    total_users?: number;
+    unread_messages?: number;
+  } | null>(null);
 
   useEffect(() => {
     api
@@ -94,19 +99,37 @@ export default function AdminPage() {
 
         <div className="max-w-6xl mx-auto px-6 py-8">
           {/* Stats row */}
-          <div className={`grid grid-cols-2 ${sysAdmin ? 'lg:grid-cols-4' : 'lg:grid-cols-3'} gap-4 mb-10`}>
+          <div className={`grid grid-cols-2 ${sysAdmin ? 'lg:grid-cols-5' : 'lg:grid-cols-3'} gap-4 mb-10`}>
             {[
-              { label: 'Active Jobs', value: loading ? '—' : String(activeCount), href: null },
-              { label: 'Total Resumes', value: stats ? String(stats.total_resumes) : '—', href: null },
-              { label: 'Applications', value: stats ? String(stats.total_applications) : '—', href: null },
+              { label: 'Active Jobs', value: loading ? '—' : String(activeCount), href: null as string | null, hint: null as string | null },
+              { label: 'Total Resumes', value: stats ? String(stats.total_resumes) : '—', href: null, hint: null },
+              { label: 'Applications', value: stats ? String(stats.total_applications) : '—', href: null, hint: null },
               ...(sysAdmin
-                ? [{ label: 'Users', value: stats?.total_users != null ? String(stats.total_users) : '—', href: '/admin/users' as string | null }]
+                ? [
+                    {
+                      label: 'Users',
+                      value: stats?.total_users != null ? String(stats.total_users) : '—',
+                      href: '/admin/users' as string | null,
+                      hint: 'Click to manage users',
+                    },
+                    {
+                      label: 'Messages',
+                      value: stats?.unread_messages != null ? String(stats.unread_messages) : '—',
+                      href: '/admin/messages' as string | null,
+                      hint: 'Click to manage submissions',
+                    },
+                  ]
                 : []),
-            ].map(({ label, value, href }) => {
+            ].map(({ label, value, href, hint }) => {
               const inner = (
                 <>
                   <div className="font-mono text-accent-green text-3xl font-bold mb-1">{value}</div>
                   <div className="text-text-muted text-xs uppercase font-mono tracking-wider">{label}</div>
+                  {hint && (
+                    <div className="text-accent-green/70 text-[10px] uppercase font-mono tracking-wider mt-2">
+                      {hint}
+                    </div>
+                  )}
                 </>
               );
               return href ? (
