@@ -3,7 +3,7 @@
 import { useState, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ChevronLeft, Sparkles } from 'lucide-react';
+import { ChevronLeft, Sparkles, Loader2, Plus } from 'lucide-react';
 import api from '@/lib/api';
 import { AdminGuard } from '@/components/AdminGuard';
 import { SkillsTagInput } from '@/components/SkillsTagInput';
@@ -11,7 +11,7 @@ import { useToast } from '@/hooks/useToast';
 import { handleApiError } from '@/lib/apiError';
 
 const inputClass =
-  'w-full bg-bg-elevated border border-border-dim rounded-lg px-3 py-2.5 text-text-primary text-sm placeholder:text-text-muted outline-none focus:border-border-bright transition-colors';
+  'w-full bg-bg-elevated border border-border-dim rounded-lg px-3 py-2.5 text-text-primary text-sm placeholder:text-text-muted outline-none focus:border-accent-green/60 transition-colors';
 
 export default function NewJobPage() {
   const router = useRouter();
@@ -92,12 +92,20 @@ export default function NewJobPage() {
               <ChevronLeft size={16} />
               Back to Admin
             </Link>
-            <h1 className="text-text-primary font-bold text-2xl">Create Job Posting</h1>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-accent-green/10 border border-accent-green/30 flex items-center justify-center">
+                <Plus size={18} className="text-accent-green" />
+              </div>
+              <div>
+                <h1 className="text-text-primary font-bold text-2xl tracking-tight">Create Job Posting</h1>
+                <p className="text-text-muted text-sm mt-0.5">Add a new opportunity to your listings</p>
+              </div>
+            </div>
           </div>
 
           <form
             onSubmit={handleSubmit}
-            className="bg-bg-surface border border-border-dim rounded-xl p-8 space-y-6"
+            className="bg-bg-surface border border-border-dim rounded-2xl p-8 space-y-6 shadow-soft"
           >
             <div>
               <label className="block text-text-secondary text-xs font-mono uppercase tracking-wider mb-2">
@@ -113,31 +121,33 @@ export default function NewJobPage() {
               />
             </div>
 
-            <div>
-              <label className="block text-text-secondary text-xs font-mono uppercase tracking-wider mb-2">
-                Company <span className="text-accent-red">*</span>
-              </label>
-              <input
-                type="text"
-                required
-                value={company}
-                onChange={(e) => setCompany(e.target.value)}
-                placeholder="e.g. Acme Corp"
-                className={inputClass}
-              />
-            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-text-secondary text-xs font-mono uppercase tracking-wider mb-2">
+                  Company <span className="text-accent-red">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={company}
+                  onChange={(e) => setCompany(e.target.value)}
+                  placeholder="e.g. Acme Corp"
+                  className={inputClass}
+                />
+              </div>
 
-            <div>
-              <label className="block text-text-secondary text-xs font-mono uppercase tracking-wider mb-2">
-                Location
-              </label>
-              <input
-                type="text"
-                value={location}
-                onChange={(e) => setLocation(e.target.value)}
-                placeholder="e.g. San Francisco, CA or Remote"
-                className={inputClass}
-              />
+              <div>
+                <label className="block text-text-secondary text-xs font-mono uppercase tracking-wider mb-2">
+                  Location
+                </label>
+                <input
+                  type="text"
+                  value={location}
+                  onChange={(e) => setLocation(e.target.value)}
+                  placeholder="San Francisco, CA or Remote"
+                  className={inputClass}
+                />
+              </div>
             </div>
 
             <div>
@@ -174,15 +184,19 @@ export default function NewJobPage() {
                   type="button"
                   onClick={handleExtractSkills}
                   disabled={extracting || !description.trim()}
-                  className="inline-flex items-center gap-1.5 text-xs font-mono text-accent-blue border border-accent-blue/30 bg-accent-blue/10 rounded-lg px-2.5 py-1 hover:bg-accent-blue/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="inline-flex items-center gap-1.5 text-xs font-mono text-accent-blue border border-accent-blue/30 bg-accent-blue/5 rounded-lg px-2.5 py-1.5 hover:bg-accent-blue/15 hover:border-accent-blue/60 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <Sparkles size={12} />
+                  {extracting ? (
+                    <Loader2 size={12} className="animate-spin" />
+                  ) : (
+                    <Sparkles size={12} />
+                  )}
                   {extracting ? 'Extracting…' : 'Extract from Description'}
                 </button>
               </div>
               <SkillsTagInput skills={skills} onChange={setSkills} />
               <p className="text-text-muted text-xs mt-1.5">
-                Press Enter or comma to add a skill, or extract them from the description
+                Press Enter or comma to add a skill, or extract them from the description.
               </p>
             </div>
 
@@ -190,7 +204,7 @@ export default function NewJobPage() {
               <label className="block text-text-secondary text-xs font-mono uppercase tracking-wider mb-3">
                 Status
               </label>
-              <div className="flex gap-3">
+              <div className="flex gap-2">
                 {(['active', 'draft'] as const).map((s) => (
                   <button
                     key={s}
@@ -199,7 +213,7 @@ export default function NewJobPage() {
                     className={`px-5 py-2 rounded-lg border font-mono text-sm transition-colors capitalize ${
                       status === s
                         ? 'bg-accent-green text-bg-base border-accent-green font-semibold'
-                        : 'bg-bg-elevated border-border-dim text-text-muted hover:border-border-bright'
+                        : 'bg-bg-elevated border-border-dim text-text-muted hover:border-border-bright hover:text-text-primary'
                     }`}
                   >
                     {s}
@@ -208,15 +222,32 @@ export default function NewJobPage() {
               </div>
             </div>
 
-            {error && <p className="text-accent-red text-sm">{error}</p>}
+            {error && (
+              <div className="rounded-lg border border-accent-red/30 bg-accent-red/5 px-3 py-2.5">
+                <p className="text-accent-red text-sm">{error}</p>
+              </div>
+            )}
 
-            <div className="flex justify-end pt-2">
+            <div className="flex justify-end gap-3 pt-2">
+              <Link
+                href="/admin"
+                className="px-4 py-2.5 rounded-lg border border-border-dim text-text-secondary text-sm hover:border-border-bright hover:text-text-primary transition-colors"
+              >
+                Cancel
+              </Link>
               <button
                 type="submit"
                 disabled={submitting}
-                className="bg-accent-green text-bg-base font-semibold px-6 py-2.5 rounded-lg text-sm hover:brightness-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                className="inline-flex items-center gap-2 bg-accent-green text-bg-base font-semibold px-6 py-2.5 rounded-lg text-sm hover:brightness-110 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {submitting ? 'Creating…' : 'Create Job'}
+                {submitting ? (
+                  <>
+                    <Loader2 size={14} className="animate-spin" />
+                    Creating…
+                  </>
+                ) : (
+                  'Create Job'
+                )}
               </button>
             </div>
           </form>

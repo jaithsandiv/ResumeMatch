@@ -3,7 +3,14 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import * as Dialog from '@radix-ui/react-dialog';
-import { ArrowLeft, ShieldCheck, ShieldOff, Trash2, Users } from 'lucide-react';
+import {
+  ArrowLeft,
+  ShieldCheck,
+  ShieldOff,
+  Trash2,
+  Users,
+  Loader2,
+} from 'lucide-react';
 import api from '@/lib/api';
 import { AdminGuard } from '@/components/AdminGuard';
 import { useToast } from '@/hooks/useToast';
@@ -98,32 +105,40 @@ export default function AdminUsersPage() {
     <AdminGuard>
       <div className="min-h-screen bg-bg-base">
         {/* Header */}
-        <div className="bg-bg-surface border-b border-border-dim px-6 py-4">
+        <div className="bg-bg-surface border-b border-border-dim px-6 py-5">
           <div className="max-w-6xl mx-auto flex items-center gap-4">
             <button
               onClick={() => router.push('/admin')}
-              className="text-text-muted hover:text-text-secondary transition-colors"
+              className="text-text-muted hover:text-text-primary p-1.5 rounded-md hover:bg-bg-elevated transition-colors"
+              aria-label="Back to admin"
             >
               <ArrowLeft size={18} />
             </button>
-            <h1 className="text-text-primary font-bold text-xl">User Management</h1>
-            <span className="bg-[#00E5A0]/10 border border-[#00E5A0]/30 text-accent-green font-mono text-xs px-2.5 py-1 rounded-full">
-              System Administrator
-            </span>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-accent-purple/10 border border-accent-purple/30 flex items-center justify-center">
+                <Users size={18} className="text-accent-purple" />
+              </div>
+              <div>
+                <h1 className="text-text-primary font-bold text-xl tracking-tight">User Management</h1>
+                <p className="text-text-muted text-xs font-mono mt-0.5">System Administrator</p>
+              </div>
+            </div>
           </div>
         </div>
 
         <div className="max-w-6xl mx-auto px-6 py-8">
           {/* Quick stats */}
-          <div className="grid grid-cols-2 gap-4 mb-8 max-w-xs">
-            <div className="bg-bg-elevated border border-border-dim rounded-lg px-5 py-4">
-              <div className="font-mono text-accent-green text-2xl font-bold mb-0.5">
+          <div className="grid grid-cols-2 gap-4 mb-8 max-w-md">
+            <div className="bg-bg-surface border border-border-dim rounded-xl px-5 py-4">
+              <Users size={14} className="text-accent-blue mb-2" />
+              <div className="font-mono text-text-primary text-2xl font-bold">
                 {loading ? '—' : users.length}
               </div>
               <div className="text-text-muted text-xs uppercase font-mono tracking-wider">Total Users</div>
             </div>
-            <div className="bg-bg-elevated border border-border-dim rounded-lg px-5 py-4">
-              <div className="font-mono text-accent-green text-2xl font-bold mb-0.5">
+            <div className="bg-bg-surface border border-border-dim rounded-xl px-5 py-4">
+              <ShieldCheck size={14} className="text-accent-green mb-2" />
+              <div className="font-mono text-text-primary text-2xl font-bold">
                 {loading ? '—' : adminCount}
               </div>
               <div className="text-text-muted text-xs uppercase font-mono tracking-wider">Admins</div>
@@ -131,7 +146,7 @@ export default function AdminUsersPage() {
           </div>
 
           {/* Users table */}
-          <div className="bg-bg-surface border border-border-dim rounded-xl overflow-hidden">
+          <div className="bg-bg-surface border border-border-dim rounded-2xl overflow-hidden shadow-soft">
             <div className="px-6 py-4 border-b border-border-dim">
               <h2 className="text-text-primary font-semibold text-base">All Users</h2>
             </div>
@@ -139,15 +154,19 @@ export default function AdminUsersPage() {
             {loading ? (
               <div className="p-6 space-y-3">
                 {Array.from({ length: 5 }).map((_, i) => (
-                  <Skeleton key={i} className="h-10 w-full" />
+                  <Skeleton key={i} className="h-12 w-full" />
                 ))}
               </div>
             ) : users.length === 0 ? (
-              <EmptyState icon={Users} title="No users found" subtitle="Users will appear here after registration" />
+              <EmptyState
+                icon={Users}
+                title="No users found"
+                subtitle="Users will appear here after registration"
+              />
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full min-w-120 text-sm">
-                  <thead>
+                  <thead className="bg-bg-elevated/50">
                     <tr className="border-b border-border-dim">
                       {['User', 'Email', 'Role', 'Actions'].map((col) => (
                         <th
@@ -168,19 +187,12 @@ export default function AdminUsersPage() {
                       return (
                         <tr
                           key={u.id}
-                          className="border-b border-border-dim last:border-0 hover:bg-bg-elevated transition-colors"
+                          className="border-b border-border-dim last:border-0 hover:bg-bg-elevated/40 transition-colors"
                         >
                           {/* Avatar + name */}
-                          <td className="px-4 py-3">
+                          <td className="px-4 py-3.5">
                             <div className="flex items-center gap-3">
-                              <div
-                                className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-xs font-mono font-bold"
-                                style={{
-                                  backgroundColor: 'rgb(79 142 247 / 0.15)',
-                                  border: '1px solid rgb(79 142 247 / 0.25)',
-                                  color: 'rgb(79 142 247)',
-                                }}
-                              >
+                              <div className="w-9 h-9 rounded-full bg-linear-to-br from-accent-blue/25 to-accent-blue/10 border border-accent-blue/30 flex items-center justify-center shrink-0 text-xs font-mono font-bold text-accent-blue">
                                 {getInitials(u.full_name || u.email)}
                               </div>
                               <div>
@@ -195,51 +207,59 @@ export default function AdminUsersPage() {
                           </td>
 
                           {/* Email */}
-                          <td className="px-4 py-3 text-text-secondary text-sm">{u.email}</td>
+                          <td className="px-4 py-3.5 text-text-secondary text-sm">{u.email}</td>
 
                           {/* Role badge */}
-                          <td className="px-4 py-3">
+                          <td className="px-4 py-3.5">
                             <span
-                              className={`inline-block font-mono text-xs px-2.5 py-1 rounded-full border ${
+                              className={`inline-flex items-center gap-1 font-mono text-xs px-2.5 py-1 rounded-full border ${
                                 isSysAdminRow
                                   ? 'bg-accent-blue/10 border-accent-blue/30 text-accent-blue'
                                   : u.role === 'admin'
-                                  ? 'bg-[#00E5A0]/10 border-[#00E5A0]/30 text-accent-green'
+                                  ? 'bg-accent-green/10 border-accent-green/30 text-accent-green'
                                   : 'bg-bg-elevated border-border-dim text-text-muted'
                               }`}
                             >
-                              {isSysAdminRow
-                                ? 'System Admin'
-                                : u.role === 'admin'
-                                ? 'Admin'
-                                : 'Visitor'}
+                              {isSysAdminRow ? (
+                                <>
+                                  <ShieldCheck size={10} />
+                                  System Admin
+                                </>
+                              ) : u.role === 'admin' ? (
+                                <>
+                                  <ShieldCheck size={10} />
+                                  Admin
+                                </>
+                              ) : (
+                                'Visitor'
+                              )}
                             </span>
                           </td>
 
                           {/* Actions */}
-                          <td className="px-4 py-3">
-                            <div className="flex items-center gap-3">
+                          <td className="px-4 py-3.5">
+                            <div className="flex items-center gap-1">
                               {canManage && (
                                 <>
                                   {!isSysAdminRow && (
                                     <button
                                       onClick={() => setUserToToggle(u)}
-                                      className="text-text-muted hover:text-text-secondary transition-colors"
+                                      className="p-1.5 rounded-md text-text-muted hover:text-accent-green hover:bg-accent-green/10 transition-colors"
                                       title={u.role === 'admin' ? 'Demote to visitor' : 'Promote to admin'}
                                     >
                                       {u.role === 'admin' ? (
-                                        <ShieldOff size={15} />
+                                        <ShieldOff size={14} />
                                       ) : (
-                                        <ShieldCheck size={15} />
+                                        <ShieldCheck size={14} />
                                       )}
                                     </button>
                                   )}
                                   <button
                                     onClick={() => setUserToDelete(u)}
-                                    className="text-text-muted hover:text-accent-red transition-colors"
+                                    className="p-1.5 rounded-md text-text-muted hover:text-accent-red hover:bg-accent-red/10 transition-colors"
                                     title="Delete user"
                                   >
-                                    <Trash2 size={15} />
+                                    <Trash2 size={14} />
                                   </button>
                                 </>
                               )}
@@ -258,8 +278,8 @@ export default function AdminUsersPage() {
         {/* Delete confirm dialog */}
         <Dialog.Root open={!!userToDelete} onOpenChange={(open) => !open && setUserToDelete(null)}>
           <Dialog.Portal>
-            <Dialog.Overlay className="fixed inset-0 bg-black/60 z-40" />
-            <Dialog.Content className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-sm bg-bg-surface border border-border-dim rounded-xl p-6 shadow-xl focus:outline-none">
+            <Dialog.Overlay className="fixed inset-0 bg-black/70 backdrop-blur-sm z-40 animate-fade-in" />
+            <Dialog.Content className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-sm bg-bg-surface border border-border-dim rounded-2xl p-6 shadow-elevated focus:outline-none animate-fade-in-up">
               <Dialog.Title className="text-text-primary font-semibold text-base mb-2">
                 Delete user?
               </Dialog.Title>
@@ -272,16 +292,23 @@ export default function AdminUsersPage() {
               <p className="text-accent-red text-xs mb-6">This action cannot be undone.</p>
               <div className="flex gap-3 justify-end">
                 <Dialog.Close asChild>
-                  <button className="px-4 py-2 rounded-lg border border-border-dim text-text-secondary text-sm hover:border-border-bright transition-colors">
+                  <button className="px-4 py-2 rounded-lg border border-border-dim text-text-secondary text-sm hover:border-border-bright hover:text-text-primary transition-colors">
                     Cancel
                   </button>
                 </Dialog.Close>
                 <button
                   onClick={handleDelete}
                   disabled={deleting}
-                  className="px-4 py-2 rounded-lg bg-accent-red text-white text-sm font-semibold hover:brightness-110 transition-all disabled:opacity-50"
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-accent-red text-white text-sm font-semibold hover:brightness-110 transition-all disabled:opacity-50"
                 >
-                  {deleting ? 'Deleting…' : 'Delete User'}
+                  {deleting ? (
+                    <>
+                      <Loader2 size={14} className="animate-spin" />
+                      Deleting…
+                    </>
+                  ) : (
+                    'Delete User'
+                  )}
                 </button>
               </div>
             </Dialog.Content>
@@ -291,8 +318,8 @@ export default function AdminUsersPage() {
         {/* Role toggle confirm dialog */}
         <Dialog.Root open={!!userToToggle} onOpenChange={(open) => !open && setUserToToggle(null)}>
           <Dialog.Portal>
-            <Dialog.Overlay className="fixed inset-0 bg-black/60 z-40" />
-            <Dialog.Content className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-sm bg-bg-surface border border-border-dim rounded-xl p-6 shadow-xl focus:outline-none">
+            <Dialog.Overlay className="fixed inset-0 bg-black/70 backdrop-blur-sm z-40 animate-fade-in" />
+            <Dialog.Content className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-sm bg-bg-surface border border-border-dim rounded-2xl p-6 shadow-elevated focus:outline-none animate-fade-in-up">
               <Dialog.Title className="text-text-primary font-semibold text-base mb-2">
                 {userToToggle?.role === 'admin' ? 'Demote to visitor?' : 'Promote to admin?'}
               </Dialog.Title>
@@ -307,20 +334,25 @@ export default function AdminUsersPage() {
               </Dialog.Description>
               <div className="flex gap-3 justify-end">
                 <Dialog.Close asChild>
-                  <button className="px-4 py-2 rounded-lg border border-border-dim text-text-secondary text-sm hover:border-border-bright transition-colors">
+                  <button className="px-4 py-2 rounded-lg border border-border-dim text-text-secondary text-sm hover:border-border-bright hover:text-text-primary transition-colors">
                     Cancel
                   </button>
                 </Dialog.Close>
                 <button
                   onClick={handleToggleRole}
                   disabled={toggling}
-                  className="px-4 py-2 rounded-lg bg-accent-green text-bg-base text-sm font-semibold hover:brightness-110 transition-all disabled:opacity-50"
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-accent-green text-bg-base text-sm font-semibold hover:brightness-110 transition-all disabled:opacity-50"
                 >
-                  {toggling
-                    ? 'Updating…'
-                    : userToToggle?.role === 'admin'
-                    ? 'Demote'
-                    : 'Promote'}
+                  {toggling ? (
+                    <>
+                      <Loader2 size={14} className="animate-spin" />
+                      Updating…
+                    </>
+                  ) : userToToggle?.role === 'admin' ? (
+                    'Demote'
+                  ) : (
+                    'Promote'
+                  )}
                 </button>
               </div>
             </Dialog.Content>

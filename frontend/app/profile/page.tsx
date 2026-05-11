@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Pencil, X, Check } from 'lucide-react';
+import { Pencil, X, Check, FileText, Send, TrendingUp, Loader2 } from 'lucide-react';
 import { getUser, setToken } from '@/lib/auth';
 import { ResumePanel } from '@/components/ResumePanel';
 import { ApplicationsPanel } from '@/components/ApplicationsPanel';
@@ -135,18 +135,22 @@ export default function ProfilePage() {
   const displayUser = user;
   const initials = displayUser ? getInitials(displayUser.full_name || displayUser.email) : '?';
 
+  const inputClass =
+    'w-full bg-bg-elevated border border-border-dim rounded-lg px-3 py-2 text-text-primary text-sm focus:outline-none focus:border-accent-green/60 transition-colors placeholder:text-text-muted';
+
   return (
     <div className="min-h-screen bg-bg-base">
       <div className="max-w-4xl mx-auto px-6 py-10">
         {/* User card */}
-        <div className="bg-bg-surface border border-border-dim rounded-xl p-6 mb-6">
+        <div className="bg-bg-surface border border-border-dim rounded-2xl p-6 mb-6 shadow-soft">
           {editing ? (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between mb-2">
+            <div className="space-y-5">
+              <div className="flex items-center justify-between">
                 <h2 className="text-text-primary font-semibold text-base">Edit Profile</h2>
                 <button
                   onClick={cancelEdit}
-                  className="text-text-muted hover:text-text-secondary transition-colors"
+                  className="text-text-muted hover:text-text-primary transition-colors p-1 rounded hover:bg-bg-elevated"
+                  aria-label="Cancel editing"
                 >
                   <X size={18} />
                 </button>
@@ -161,7 +165,7 @@ export default function ProfilePage() {
                     type="text"
                     value={form.full_name}
                     onChange={(e) => setForm((f) => ({ ...f, full_name: e.target.value }))}
-                    className="w-full bg-bg-elevated border border-border-dim rounded-lg px-3 py-2 text-text-primary text-sm focus:outline-none focus:border-accent-blue transition-colors"
+                    className={inputClass}
                     placeholder="Your name"
                   />
                 </div>
@@ -174,15 +178,15 @@ export default function ProfilePage() {
                     type="email"
                     value={form.email}
                     onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-                    className="w-full bg-bg-elevated border border-border-dim rounded-lg px-3 py-2 text-text-primary text-sm focus:outline-none focus:border-accent-blue transition-colors"
+                    className={inputClass}
                     placeholder="you@example.com"
                   />
                 </div>
 
-                <div className="sm:col-span-2">
-                  <p className="text-text-muted text-xs font-mono uppercase tracking-wider mb-3">
+                <div className="sm:col-span-2 pt-2 border-t border-border-dim">
+                  <p className="text-text-muted text-xs font-mono uppercase tracking-wider mb-3 mt-2">
                     Change Password
-                    <span className="normal-case ml-1">(leave blank to keep current)</span>
+                    <span className="normal-case ml-1.5 text-text-muted/70">(leave blank to keep current)</span>
                   </p>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div>
@@ -192,8 +196,8 @@ export default function ProfilePage() {
                         value={form.current_password}
                         onChange={(e) => setForm((f) => ({ ...f, current_password: e.target.value }))}
                         autoComplete="new-password"
-                        className="w-full bg-bg-elevated border border-border-dim rounded-lg px-3 py-2 text-text-primary text-sm focus:outline-none focus:border-accent-blue transition-colors"
-                        placeholder="Current password"
+                        className={inputClass}
+                        placeholder="Current"
                       />
                     </div>
                     <div>
@@ -203,19 +207,19 @@ export default function ProfilePage() {
                         value={form.new_password}
                         onChange={(e) => setForm((f) => ({ ...f, new_password: e.target.value }))}
                         autoComplete="new-password"
-                        className="w-full bg-bg-elevated border border-border-dim rounded-lg px-3 py-2 text-text-primary text-sm focus:outline-none focus:border-accent-blue transition-colors"
-                        placeholder="Min. 8 characters"
+                        className={inputClass}
+                        placeholder="Min. 8 chars"
                       />
                     </div>
                     <div>
-                      <label className="block text-text-muted text-xs mb-1.5">Confirm New Password</label>
+                      <label className="block text-text-muted text-xs mb-1.5">Confirm</label>
                       <input
                         type="password"
                         value={form.confirm_password}
                         onChange={(e) => setForm((f) => ({ ...f, confirm_password: e.target.value }))}
                         autoComplete="new-password"
-                        className="w-full bg-bg-elevated border border-border-dim rounded-lg px-3 py-2 text-text-primary text-sm focus:outline-none focus:border-accent-blue transition-colors"
-                        placeholder="Repeat new password"
+                        className={inputClass}
+                        placeholder="Repeat new"
                       />
                     </div>
                   </div>
@@ -225,7 +229,7 @@ export default function ProfilePage() {
               <div className="flex justify-end gap-3 pt-1">
                 <button
                   onClick={cancelEdit}
-                  className="px-4 py-2 rounded-lg border border-border-dim text-text-secondary text-sm hover:border-border-bright transition-colors"
+                  className="px-4 py-2 rounded-lg border border-border-dim text-text-secondary text-sm hover:border-border-bright hover:text-text-primary transition-colors"
                 >
                   Cancel
                 </button>
@@ -234,31 +238,47 @@ export default function ProfilePage() {
                   disabled={saving}
                   className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-accent-green text-bg-base font-semibold text-sm hover:brightness-110 transition-all disabled:opacity-50"
                 >
-                  <Check size={15} />
-                  {saving ? 'Saving…' : 'Save Changes'}
+                  {saving ? (
+                    <>
+                      <Loader2 size={14} className="animate-spin" />
+                      Saving…
+                    </>
+                  ) : (
+                    <>
+                      <Check size={15} />
+                      Save Changes
+                    </>
+                  )}
                 </button>
               </div>
             </div>
           ) : (
             <div className="flex items-center gap-5">
-              <div
-                className="w-14 h-14 rounded-full flex items-center justify-center shrink-0"
-                style={{ backgroundColor: 'rgb(79 142 247 / 0.2)', border: '1px solid rgb(79 142 247 / 0.3)' }}
-              >
-                <span className="text-accent-blue font-mono font-bold text-lg">{initials}</span>
+              <div className="relative shrink-0">
+                <div
+                  aria-hidden="true"
+                  className="absolute inset-0 rounded-full blur-md opacity-50"
+                  style={{
+                    background:
+                      'radial-gradient(circle, rgba(79, 142, 247, 0.4) 0%, transparent 70%)',
+                  }}
+                />
+                <div className="relative w-16 h-16 rounded-full bg-linear-to-br from-accent-blue/30 to-accent-blue/10 border border-accent-blue/30 flex items-center justify-center">
+                  <span className="text-accent-blue font-mono font-bold text-lg">{initials}</span>
+                </div>
               </div>
               <div className="min-w-0 flex-1">
-                <div className="text-text-primary font-semibold text-base truncate">
+                <div className="text-text-primary font-semibold text-lg truncate">
                   {displayUser?.full_name || '—'}
                 </div>
                 <div className="text-text-secondary text-sm truncate">{displayUser?.email}</div>
-                <span className="mt-1 inline-block text-text-muted font-mono text-xs border border-border-dim rounded px-2 py-0.5 capitalize">
+                <span className="mt-1.5 inline-flex items-center text-text-secondary font-mono text-xs border border-border-dim bg-bg-elevated rounded-full px-2.5 py-0.5 capitalize">
                   {displayUser?.role ?? 'user'}
                 </span>
               </div>
               <button
                 onClick={openEdit}
-                className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border-dim text-text-secondary text-sm hover:border-border-bright hover:text-text-primary transition-colors"
+                className="shrink-0 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-border-dim text-text-secondary text-sm hover:border-accent-green/40 hover:text-accent-green transition-all"
               >
                 <Pencil size={14} />
                 Edit
@@ -268,56 +288,72 @@ export default function ProfilePage() {
         </div>
 
         {/* Quick stats */}
-        <div className="grid grid-cols-3 gap-4 mb-8">
+        <div className="grid grid-cols-3 gap-3 sm:gap-4 mb-8">
           {statsLoading
             ? Array.from({ length: 3 }).map((_, i) => <SkeletonProfileStat key={i} />)
             : [
-                { label: 'Resumes Uploaded', value: stats.resume_count },
-                { label: 'Applications Sent', value: stats.application_count },
+                {
+                  label: 'Resumes Uploaded',
+                  value: stats.resume_count,
+                  icon: FileText,
+                  color: 'text-accent-green',
+                },
+                {
+                  label: 'Applications Sent',
+                  value: stats.application_count,
+                  icon: Send,
+                  color: 'text-accent-blue',
+                },
                 {
                   label: 'Avg Match Score',
                   value:
                     stats.avg_match_score == null
                       ? '—'
                       : `${Math.round(stats.avg_match_score)}%`,
+                  icon: TrendingUp,
+                  color: 'text-accent-amber',
                 },
-              ].map(({ label, value }) => (
+              ].map(({ label, value, icon: Icon, color }) => (
                 <div
                   key={label}
-                  className="bg-bg-surface border border-border-dim rounded-lg p-4 text-center"
+                  className="bg-bg-surface border border-border-dim rounded-xl p-4 hover:border-border-bright transition-colors"
                 >
-                  <div className="font-mono text-accent-green text-2xl font-semibold">
-                    {value}
-                  </div>
-                  <div className="text-text-muted text-xs mt-1">{label}</div>
+                  <Icon size={16} className={`${color} mb-2`} />
+                  <div className={`font-mono ${color} text-2xl font-bold`}>{value}</div>
+                  <div className="text-text-muted text-xs mt-0.5 font-medium">{label}</div>
                 </div>
               ))}
         </div>
 
         {/* Tabs */}
         <div className="border-b border-border-dim mb-6">
-          <div className="flex gap-6">
+          <div className="flex gap-1">
             {(['resumes', 'applications'] as const).map((t) => (
               <button
                 key={t}
                 onClick={() => setTab(t)}
                 className={
                   tab === t
-                    ? 'pb-3 -mb-px border-b-2 border-accent-green text-text-primary text-sm font-medium capitalize'
-                    : 'pb-3 -mb-px text-text-secondary hover:text-text-primary text-sm font-medium capitalize transition-colors'
+                    ? 'relative px-4 py-3 text-text-primary text-sm font-medium capitalize'
+                    : 'px-4 py-3 text-text-secondary hover:text-text-primary text-sm font-medium capitalize transition-colors'
                 }
               >
                 {t}
+                {tab === t && (
+                  <span className="absolute left-3 right-3 -bottom-px h-0.5 rounded-full bg-accent-green" />
+                )}
               </button>
             ))}
           </div>
         </div>
 
-        {tab === 'resumes' ? (
-          <ResumePanel onResumeCountChange={() => { refreshStats(); }} />
-        ) : (
-          <ApplicationsPanel />
-        )}
+        <div className="animate-fade-in">
+          {tab === 'resumes' ? (
+            <ResumePanel onResumeCountChange={() => { refreshStats(); }} />
+          ) : (
+            <ApplicationsPanel />
+          )}
+        </div>
       </div>
     </div>
   );

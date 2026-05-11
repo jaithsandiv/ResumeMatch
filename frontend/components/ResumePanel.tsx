@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import type { DragEvent, ChangeEvent } from 'react';
-import { FileText, Download, Eye, Zap, Loader2, X, Upload, Trash2 } from 'lucide-react';
+import { FileText, Download, Eye, Zap, Loader2, X, Upload, Trash2, CheckCircle2 } from 'lucide-react';
 import * as Dialog from '@radix-ui/react-dialog';
 import api from '@/lib/api';
 import { SkillTag } from '@/components/ui/SkillTag';
@@ -49,27 +49,16 @@ function ParseStatusBadge({ status }: { status: string }) {
   const isParsed = status === 'parsed' || status === 'completed' || status === 'success';
   if (isParsed) {
     return (
-      <span
-        className="font-mono text-xs px-2 py-0.5 rounded-full"
-        style={{
-          backgroundColor: 'rgb(0 229 160 / 0.1)',
-          color: '#00E5A0',
-          border: '1px solid rgb(0 229 160 / 0.3)',
-        }}
-      >
-        Parsed ✓
+      <span className="inline-flex items-center gap-1 font-mono text-xs px-2 py-0.5 rounded-full bg-accent-green/10 border border-accent-green/30 text-accent-green">
+        <CheckCircle2 size={11} />
+        Parsed
       </span>
     );
   }
   return (
     <span
       title="File could not be parsed. Try uploading a different format."
-      className="font-mono text-xs px-2 py-0.5 rounded-full cursor-help"
-      style={{
-        backgroundColor: 'rgb(245 166 35 / 0.1)',
-        color: '#F5A623',
-        border: '1px solid rgb(245 166 35 / 0.3)',
-      }}
+      className="font-mono text-xs px-2 py-0.5 rounded-full cursor-help bg-accent-amber/10 border border-accent-amber/30 text-accent-amber"
     >
       Parse failed
     </span>
@@ -181,7 +170,7 @@ export function ResumePanel({ onResumeCountChange }: ResumePanelProps) {
       };
       persist([entry, ...resumes]);
       setSelectedFile(null);
-      toast.success('Resume uploaded');
+      toast.success('Resume uploaded successfully');
     } catch (err: unknown) {
       const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
       setUploadError(detail ?? 'Upload failed. Please try again.');
@@ -256,12 +245,11 @@ export function ResumePanel({ onResumeCountChange }: ResumePanelProps) {
         onDragLeave={() => setDragOver(false)}
         onDrop={onDrop}
         onClick={() => fileInputRef.current?.click()}
-        className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors select-none ${
+        className={`relative border-2 border-dashed rounded-2xl px-6 py-10 text-center cursor-pointer transition-all select-none ${
           dragOver
-            ? 'border-accent-green'
-            : 'border-border-dim hover:border-accent-green'
+            ? 'border-accent-green bg-accent-green/5'
+            : 'border-border-dim hover:border-accent-green/50 hover:bg-bg-surface/40'
         }`}
-        style={dragOver ? { backgroundColor: 'rgb(0 229 160 / 0.04)' } : undefined}
       >
         <input
           ref={fileInputRef}
@@ -270,35 +258,51 @@ export function ResumePanel({ onResumeCountChange }: ResumePanelProps) {
           className="hidden"
           onChange={onInputChange}
         />
-        {selectedFile ? (
-          <p className="text-text-primary font-mono text-sm">
-            {selectedFile.name}{' '}
-            <span className="text-text-muted">({formatBytes(selectedFile.size)})</span>
-          </p>
-        ) : (
-          <p className="text-text-muted text-sm">
-            Drag & drop a{' '}
-            <span className="text-text-primary">.pdf</span> or{' '}
-            <span className="text-text-primary">.docx</span> here, or{' '}
-            <span className="text-accent-blue">click to browse</span>
-          </p>
-        )}
-        {uploadError && (
-          <p
-            className="text-xs mt-2"
-            style={{ color: '#F06060' }}
-            onClick={(e) => e.stopPropagation()}
+        <div className="flex flex-col items-center gap-3">
+          <div
+            className={`w-12 h-12 rounded-xl flex items-center justify-center transition-colors ${
+              dragOver
+                ? 'bg-accent-green/15 border border-accent-green/30'
+                : 'bg-bg-elevated border border-border-dim'
+            }`}
           >
-            {uploadError}
-          </p>
-        )}
+            <Upload
+              size={20}
+              className={dragOver ? 'text-accent-green' : 'text-text-secondary'}
+            />
+          </div>
+          {selectedFile ? (
+            <p className="text-text-primary font-mono text-sm">
+              {selectedFile.name}{' '}
+              <span className="text-text-muted">({formatBytes(selectedFile.size)})</span>
+            </p>
+          ) : (
+            <div className="space-y-1">
+              <p className="text-text-primary text-sm font-medium">
+                Drop your resume here, or{' '}
+                <span className="text-accent-green">browse</span>
+              </p>
+              <p className="text-text-muted text-xs font-mono">
+                Supports PDF and DOCX
+              </p>
+            </div>
+          )}
+          {uploadError && (
+            <p
+              className="text-xs text-accent-red mt-1"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {uploadError}
+            </p>
+          )}
+        </div>
       </div>
 
       {selectedFile && (
         <button
           onClick={handleUpload}
           disabled={uploading}
-          className="flex items-center gap-2 bg-accent-green text-bg-base font-bold px-5 py-2.5 rounded text-sm hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
+          className="inline-flex items-center gap-2 bg-accent-green text-bg-base font-semibold px-5 py-2.5 rounded-lg text-sm hover:brightness-110 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
         >
           {uploading ? (
             <>
@@ -306,7 +310,10 @@ export function ResumePanel({ onResumeCountChange }: ResumePanelProps) {
               Uploading…
             </>
           ) : (
-            'Upload Resume'
+            <>
+              <Upload size={15} />
+              Upload Resume
+            </>
           )}
         </button>
       )}
@@ -317,37 +324,42 @@ export function ResumePanel({ onResumeCountChange }: ResumePanelProps) {
           <EmptyState
             icon={Upload}
             title="No resumes uploaded yet"
-            subtitle="Upload your first resume"
+            subtitle="Upload your first resume to get started"
           />
         ) : null}
         {resumes.map((resume) => (
-          <div key={resume.resume_id} className="bg-bg-surface border border-border-dim rounded-lg px-5 py-4">
-            <div className="flex items-center gap-3">
-              <FileText className="w-5 h-5 text-text-muted shrink-0" />
+          <div
+            key={resume.resume_id}
+            className="bg-bg-surface border border-border-dim rounded-xl px-5 py-4 hover:border-border-bright transition-colors"
+          >
+            <div className="flex items-center gap-3 flex-wrap">
+              <div className="w-9 h-9 rounded-lg bg-bg-elevated border border-border-dim flex items-center justify-center shrink-0">
+                <FileText className="w-4 h-4 text-accent-blue" />
+              </div>
 
               <div className="flex-1 min-w-0">
                 <span className="text-text-primary text-sm font-medium truncate block">
                   {resume.filename}
                 </span>
                 <span className="text-text-muted font-mono text-xs">
-                  {formatDate(resume.uploaded_at)}
+                  Uploaded {formatDate(resume.uploaded_at)}
                 </span>
               </div>
 
-              <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
+              <div className="flex items-center gap-1.5 shrink-0 flex-wrap justify-end">
                 <ParseStatusBadge status={resume.parse_status} />
                 <button
                   onClick={() => handlePreview(resume.resume_id)}
                   title="Preview Text"
-                  className="flex items-center gap-1 text-accent-blue border border-accent-blue/40 hover:bg-accent-blue/10 hover:border-accent-blue/70 transition-colors text-xs px-2 py-1 rounded"
+                  className="inline-flex items-center gap-1 text-accent-blue/90 border border-accent-blue/30 hover:bg-accent-blue/10 hover:border-accent-blue/60 hover:text-accent-blue transition-colors text-xs px-2.5 py-1 rounded-md"
                 >
                   <Eye className="w-3.5 h-3.5" />
-                  Preview Text
+                  Preview
                 </button>
                 <button
                   onClick={() => handleDownload(resume.resume_id)}
                   title="Download"
-                  className="flex items-center gap-1 text-accent-blue border border-accent-blue/40 hover:bg-accent-blue/10 hover:border-accent-blue/70 transition-colors text-xs px-2 py-1 rounded"
+                  className="inline-flex items-center gap-1 text-accent-blue/90 border border-accent-blue/30 hover:bg-accent-blue/10 hover:border-accent-blue/60 hover:text-accent-blue transition-colors text-xs px-2.5 py-1 rounded-md"
                 >
                   <Download className="w-3.5 h-3.5" />
                   Download
@@ -356,7 +368,7 @@ export function ResumePanel({ onResumeCountChange }: ResumePanelProps) {
                   onClick={() => handleExtractSkills(resume.resume_id)}
                   disabled={extractingId === resume.resume_id}
                   title="Extract Skills"
-                  className="flex items-center gap-1 text-accent-green border border-accent-green/40 hover:bg-accent-green/10 hover:border-accent-green/70 transition-colors text-xs px-2 py-1 rounded disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="inline-flex items-center gap-1 text-accent-green/90 border border-accent-green/30 hover:bg-accent-green/10 hover:border-accent-green/60 hover:text-accent-green transition-colors text-xs px-2.5 py-1 rounded-md disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   {extractingId === resume.resume_id ? (
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -369,7 +381,7 @@ export function ResumePanel({ onResumeCountChange }: ResumePanelProps) {
                   onClick={() => setConfirmDeleteId(resume.resume_id)}
                   disabled={deletingId === resume.resume_id}
                   title="Delete"
-                  className="flex items-center gap-1 text-accent-red border border-accent-red/40 hover:bg-accent-red/10 hover:border-accent-red/70 transition-colors text-xs px-2 py-1 rounded disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="inline-flex items-center gap-1 text-accent-red/80 border border-accent-red/30 hover:bg-accent-red/10 hover:border-accent-red/60 hover:text-accent-red transition-colors text-xs px-2.5 py-1 rounded-md disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   {deletingId === resume.resume_id ? (
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -382,7 +394,7 @@ export function ResumePanel({ onResumeCountChange }: ResumePanelProps) {
             </div>
 
             {skillsMap[resume.resume_id] && skillsMap[resume.resume_id].length > 0 && (
-              <div className="mt-3 flex flex-wrap gap-2 pl-8">
+              <div className="mt-4 pl-12 flex flex-wrap gap-1.5 animate-fade-in">
                 {skillsMap[resume.resume_id].map((skill) => (
                   <SkillTag key={skill} label={skill} variant="matched" />
                 ))}
@@ -400,18 +412,18 @@ export function ResumePanel({ onResumeCountChange }: ResumePanelProps) {
         }}
       >
         <Dialog.Portal>
-          <Dialog.Overlay className="fixed inset-0 bg-black/60 z-50" />
-          <Dialog.Content className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-md bg-bg-surface border border-border-dim rounded-xl p-6 shadow-xl focus:outline-none">
+          <Dialog.Overlay className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 animate-fade-in" />
+          <Dialog.Content className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-md bg-bg-surface border border-border-dim rounded-2xl p-6 shadow-elevated focus:outline-none animate-fade-in-up">
             <Dialog.Title className="text-text-primary font-semibold text-base mb-2">
               Delete resume?
             </Dialog.Title>
-            <Dialog.Description className="text-text-muted text-sm mb-6">
+            <Dialog.Description className="text-text-secondary text-sm mb-6">
               This will permanently remove the resume and its parsed data. This action cannot be undone.
             </Dialog.Description>
             <div className="flex justify-end gap-2">
               <Dialog.Close asChild>
                 <button
-                  className="text-text-secondary hover:text-text-primary transition-colors text-sm px-4 py-2 rounded border border-border-dim"
+                  className="text-text-secondary hover:text-text-primary transition-colors text-sm px-4 py-2 rounded-lg border border-border-dim hover:border-border-bright"
                   disabled={deletingId !== null}
                 >
                   Cancel
@@ -420,8 +432,7 @@ export function ResumePanel({ onResumeCountChange }: ResumePanelProps) {
               <button
                 onClick={() => confirmDeleteId && handleDelete(confirmDeleteId)}
                 disabled={deletingId !== null}
-                className="flex items-center gap-2 font-bold px-4 py-2 rounded text-sm hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
-                style={{ backgroundColor: '#F06060', color: '#0E141B' }}
+                className="inline-flex items-center gap-2 font-semibold px-4 py-2 rounded-lg text-sm bg-accent-red text-white hover:brightness-110 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {deletingId !== null ? (
                   <>
@@ -440,14 +451,14 @@ export function ResumePanel({ onResumeCountChange }: ResumePanelProps) {
       {/* Text preview modal */}
       <Dialog.Root open={previewOpen} onOpenChange={setPreviewOpen}>
         <Dialog.Portal>
-          <Dialog.Overlay className="fixed inset-0 bg-black/60 z-50" />
-          <Dialog.Content className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-2xl bg-bg-surface border border-border-dim rounded-xl p-6 shadow-xl focus:outline-none flex flex-col max-h-[80vh]">
+          <Dialog.Overlay className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 animate-fade-in" />
+          <Dialog.Content className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-2xl bg-bg-surface border border-border-dim rounded-2xl p-6 shadow-elevated focus:outline-none flex flex-col max-h-[80vh] animate-fade-in-up">
             <div className="flex items-center justify-between mb-4 shrink-0">
               <Dialog.Title className="text-text-primary font-semibold text-base">
                 Resume Text Preview
               </Dialog.Title>
               <Dialog.Close asChild>
-                <button className="text-text-muted hover:text-text-secondary transition-colors">
+                <button className="text-text-muted hover:text-text-primary transition-colors p-1 rounded hover:bg-bg-elevated">
                   <X className="w-4 h-4" />
                 </button>
               </Dialog.Close>
@@ -456,7 +467,7 @@ export function ResumePanel({ onResumeCountChange }: ResumePanelProps) {
             <div className="overflow-y-auto flex-1 min-h-0">
               {previewLoading ? (
                 <div className="flex items-center justify-center py-12">
-                  <Loader2 className="w-5 h-5 animate-spin text-text-muted" />
+                  <Loader2 className="w-5 h-5 animate-spin text-accent-green" />
                 </div>
               ) : previewData ? (
                 <>

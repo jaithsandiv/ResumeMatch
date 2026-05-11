@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect, type CSSProperties } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { SendHorizontal, Trash2, Loader2, X } from 'lucide-react';
+import { SendHorizontal, Trash2, Loader2, X, ArrowRight } from 'lucide-react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { SkeletonJobCard } from '@/components/ui/Skeleton';
@@ -23,31 +23,19 @@ interface StoredApplication {
 const accentStrip: Record<StoredApplication['status'], string> = {
   pending: 'bg-accent-amber',
   interview: 'bg-accent-blue',
-  rejected: 'bg-[#F06060]',
+  rejected: 'bg-accent-red',
   accepted: 'bg-accent-green',
 };
 
-const statusBadgeStyle: Record<StoredApplication['status'], CSSProperties> = {
-  pending: {
-    backgroundColor: 'rgb(245 166 35 / 0.1)',
-    color: '#F5A623',
-    border: '1px solid rgb(245 166 35 / 0.3)',
-  },
-  interview: {
-    backgroundColor: 'rgb(79 142 247 / 0.1)',
-    color: '#4F8EF7',
-    border: '1px solid rgb(79 142 247 / 0.3)',
-  },
-  rejected: {
-    backgroundColor: 'rgb(240 96 96 / 0.1)',
-    color: '#F06060',
-    border: '1px solid rgb(240 96 96 / 0.3)',
-  },
-  accepted: {
-    backgroundColor: 'rgb(0 229 160 / 0.1)',
-    color: '#00E5A0',
-    border: '1px solid rgb(0 229 160 / 0.3)',
-  },
+const statusBadge: Record<StoredApplication['status'], string> = {
+  pending:
+    'bg-accent-amber/10 border-accent-amber/30 text-accent-amber',
+  interview:
+    'bg-accent-blue/10 border-accent-blue/30 text-accent-blue',
+  rejected:
+    'bg-accent-red/10 border-accent-red/30 text-accent-red',
+  accepted:
+    'bg-accent-green/10 border-accent-green/30 text-accent-green',
 };
 
 function formatDate(iso: string): string {
@@ -107,8 +95,8 @@ export function ApplicationsPanel() {
         icon={SendHorizontal}
         title="No applications yet"
         subtitle={
-          <Link href="/" className="text-accent-blue hover:underline">
-            Browse Jobs →
+          <Link href="/" className="inline-flex items-center gap-1 text-accent-blue hover:underline">
+            Browse Jobs <ArrowRight size={13} />
           </Link>
         }
       />
@@ -120,12 +108,12 @@ export function ApplicationsPanel() {
       <div className="space-y-3">
         {applications.map((app) => {
           const strip = accentStrip[app.status] ?? 'bg-border-dim';
-          const badge = statusBadgeStyle[app.status];
+          const badge = statusBadge[app.status] ?? 'bg-bg-elevated border-border-dim text-text-muted';
 
           return (
             <div
               key={app.application_id}
-              className="bg-bg-surface border border-border-dim rounded-lg flex overflow-hidden"
+              className="group bg-bg-surface border border-border-dim rounded-xl flex overflow-hidden hover:border-border-bright transition-colors"
             >
               {/* Status accent strip */}
               <div className={`w-1 shrink-0 ${strip}`} />
@@ -133,7 +121,7 @@ export function ApplicationsPanel() {
               {/* Body */}
               <div className="flex-1 px-5 py-4 min-w-0">
                 <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex-1">
                     <div className="text-text-primary font-semibold text-sm truncate">
                       {app.job_title}
                     </div>
@@ -141,8 +129,7 @@ export function ApplicationsPanel() {
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     <span
-                      className="font-mono text-xs px-2 py-0.5 rounded-full capitalize"
-                      style={badge}
+                      className={`inline-flex items-center font-mono text-xs px-2.5 py-0.5 rounded-full border capitalize ${badge}`}
                     >
                       {app.status}
                     </span>
@@ -150,7 +137,7 @@ export function ApplicationsPanel() {
                       onClick={() => setConfirmDeleteId(app.application_id)}
                       disabled={deletingId === app.application_id}
                       title="Withdraw application"
-                      className="flex items-center gap-1 text-accent-red border border-accent-red/40 hover:bg-accent-red/10 hover:border-accent-red/70 transition-colors text-xs px-2 py-1 rounded disabled:opacity-40 disabled:cursor-not-allowed"
+                      className="inline-flex items-center gap-1 text-accent-red/80 border border-accent-red/30 hover:bg-accent-red/10 hover:border-accent-red/60 hover:text-accent-red transition-colors text-xs px-2.5 py-1 rounded-md disabled:opacity-40 disabled:cursor-not-allowed"
                     >
                       {deletingId === app.application_id ? (
                         <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -162,15 +149,15 @@ export function ApplicationsPanel() {
                   </div>
                 </div>
 
-                <div className="mt-3 flex items-center justify-between gap-2">
+                <div className="mt-3 flex items-center justify-between gap-2 pt-3 border-t border-border-dim/60">
                   <span className="font-mono text-xs text-text-muted">
                     Applied {formatDate(app.applied_at)}
                   </span>
                   <Link
                     href={`/insights/${app.application_id}?job_id=${app.job_id}&resume_id=${app.resume_id}`}
-                    className="text-accent-blue text-sm hover:underline shrink-0"
+                    className="inline-flex items-center gap-1 text-accent-blue text-sm hover:underline shrink-0 font-medium"
                   >
-                    View Insights →
+                    View Insights <ArrowRight size={13} />
                   </Link>
                 </div>
               </div>
@@ -187,25 +174,25 @@ export function ApplicationsPanel() {
         }}
       >
         <Dialog.Portal>
-          <Dialog.Overlay className="fixed inset-0 bg-black/60 z-50" />
-          <Dialog.Content className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-md bg-bg-surface border border-border-dim rounded-xl p-6 shadow-xl focus:outline-none">
+          <Dialog.Overlay className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 animate-fade-in" />
+          <Dialog.Content className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-md bg-bg-surface border border-border-dim rounded-2xl p-6 shadow-elevated focus:outline-none animate-fade-in-up">
             <div className="flex items-start justify-between mb-2">
               <Dialog.Title className="text-text-primary font-semibold text-base">
                 Withdraw application?
               </Dialog.Title>
               <Dialog.Close asChild>
-                <button className="text-text-muted hover:text-text-secondary transition-colors">
+                <button className="text-text-muted hover:text-text-primary transition-colors p-1 rounded hover:bg-bg-elevated">
                   <X className="w-4 h-4" />
                 </button>
               </Dialog.Close>
             </div>
-            <Dialog.Description className="text-text-muted text-sm mb-6">
+            <Dialog.Description className="text-text-secondary text-sm mb-6">
               This will permanently remove your application. This action cannot be undone.
             </Dialog.Description>
             <div className="flex justify-end gap-2">
               <Dialog.Close asChild>
                 <button
-                  className="text-text-secondary hover:text-text-primary transition-colors text-sm px-4 py-2 rounded border border-border-dim"
+                  className="text-text-secondary hover:text-text-primary transition-colors text-sm px-4 py-2 rounded-lg border border-border-dim hover:border-border-bright"
                   disabled={deletingId !== null}
                 >
                   Cancel
@@ -214,8 +201,7 @@ export function ApplicationsPanel() {
               <button
                 onClick={() => confirmDeleteId && handleDelete(confirmDeleteId)}
                 disabled={deletingId !== null}
-                className="flex items-center gap-2 font-bold px-4 py-2 rounded text-sm hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
-                style={{ backgroundColor: '#F06060', color: '#0E141B' }}
+                className="inline-flex items-center gap-2 font-semibold px-4 py-2 rounded-lg text-sm bg-accent-red text-white hover:brightness-110 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {deletingId !== null ? (
                   <>
