@@ -31,6 +31,7 @@ function Initials({ name }: { name: string }) {
 
 const NAV_LINKS = [
   { href: '/', label: 'Jobs' },
+  { href: '/about', label: 'About' },
   { href: '/profile', label: 'Profile' },
 ];
 
@@ -63,7 +64,7 @@ export function Navbar() {
         ...NAV_LINKS,
         ...(isAdmin() ? [{ href: '/admin', label: 'Admin' }] : []),
       ]
-    : [{ href: '/', label: 'Jobs' }];
+    : [{ href: '/', label: 'Jobs' }, { href: '/about', label: 'About' }];
 
   return (
     <>

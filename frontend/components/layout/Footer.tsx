@@ -20,6 +20,12 @@ export function Footer() {
           >
             Contact Us
           </Link>
+          <Link
+            href="/about"
+            className="text-accent-green text-xs font-mono hover:underline"
+          >
+            About Us
+          </Link>
           <p className="text-text-muted text-xs font-mono">
             © {year} ResumeMatch
           </p>
