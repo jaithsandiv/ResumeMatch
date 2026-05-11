@@ -305,7 +305,7 @@ export default function InsightsPage() {
           >
             <ChevronLeft className="w-4 h-4" />
             Back
-          </button>
+          </button><br></br>
           <div className="inline-flex items-center gap-1.5 mb-3 px-2.5 py-1 rounded-full border border-accent-green/30 bg-accent-green/5 text-accent-green text-xs font-mono">
             <Sparkles size={11} />
             AI Analysis
