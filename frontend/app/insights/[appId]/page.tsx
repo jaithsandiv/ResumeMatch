@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { CheckCircle2, Loader2, ChevronLeft } from 'lucide-react';
+import { CheckCircle2, Loader2, ChevronLeft, Sparkles, AlertCircle, RotateCw } from 'lucide-react';
 import { MatchScoreCard } from '@/components/insights/MatchScoreCard';
 import { ExplainabilityChart } from '@/components/insights/ExplainabilityChart';
 import { CounterfactualPanel } from '@/components/insights/CounterfactualPanel';
@@ -68,49 +68,53 @@ function StepTracker({ current, error }: StepTrackerProps) {
         const done = i < current;
         const active = i === current;
         const isLast = i === STEPS.length - 1;
+        const errorActive = error && active;
 
         return (
           <div key={i} className="flex items-center flex-1 last:flex-none">
             {/* Node */}
-            <div className="flex flex-col items-center gap-1.5 shrink-0">
+            <div className="flex flex-col items-center gap-2 shrink-0">
               <div
-                className="w-7 h-7 rounded-full flex items-center justify-center transition-all duration-300"
-                style={{
-                  backgroundColor: done || active
-                    ? (error && active ? 'rgb(240 96 96 / 0.15)' : 'rgb(0 229 160 / 0.15)')
-                    : '#1C2030',
-                  border: `2px solid ${
-                    done || active
-                      ? error && active
-                        ? '#F06060'
-                        : '#00E5A0'
-                      : '#252A3A'
-                  }`,
-                }}
+                className={`relative w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 ${
+                  done
+                    ? 'bg-accent-green/15 border-2 border-accent-green'
+                    : errorActive
+                    ? 'bg-accent-red/15 border-2 border-accent-red'
+                    : active
+                    ? 'bg-accent-green/15 border-2 border-accent-green'
+                    : 'bg-bg-elevated border-2 border-border-dim'
+                }`}
               >
                 {done ? (
-                  <CheckCircle2 size={14} color="#00E5A0" strokeWidth={2.5} />
+                  <CheckCircle2 size={15} className="text-accent-green" strokeWidth={2.5} />
                 ) : active && !error && current < 3 ? (
-                  <Loader2 size={13} color="#00E5A0" className="animate-spin" />
+                  <Loader2 size={14} className="text-accent-green animate-spin" />
+                ) : errorActive ? (
+                  <AlertCircle size={14} className="text-accent-red" />
                 ) : (
                   <span
-                    className="w-2 h-2 rounded-full"
-                    style={{ backgroundColor: active ? (error ? '#F06060' : '#00E5A0') : '#525970' }}
+                    className={`w-2 h-2 rounded-full ${
+                      active ? 'bg-accent-green' : 'bg-text-muted'
+                    }`}
+                  />
+                )}
+                {active && !error && (
+                  <span
+                    aria-hidden="true"
+                    className="absolute inset-0 rounded-full animate-ping bg-accent-green/30"
                   />
                 )}
               </div>
               <span
-                className="text-xs font-mono whitespace-nowrap"
-                style={{
-                  color: active
+                className={`text-xs font-mono whitespace-nowrap ${
+                  active
                     ? error
-                      ? '#F06060'
-                      : '#00E5A0'
+                      ? 'text-accent-red font-bold'
+                      : 'text-accent-green font-bold'
                     : done
-                    ? '#00E5A0'
-                    : '#525970',
-                  fontWeight: active ? 700 : 400,
-                }}
+                    ? 'text-accent-green'
+                    : 'text-text-muted'
+                }`}
               >
                 {step.label}
               </span>
@@ -120,7 +124,7 @@ function StepTracker({ current, error }: StepTrackerProps) {
             {!isLast && (
               <div
                 className="flex-1 h-px mx-2 transition-all duration-500"
-                style={{ backgroundColor: done ? '#00E5A0' : '#252A3A', marginBottom: '18px' }}
+                style={{ backgroundColor: done ? '#00E5A0' : '#252A3A', marginBottom: '22px' }}
               />
             )}
           </div>
@@ -141,7 +145,7 @@ function ResultPanels({
 }) {
   const jobSkillsTotal = graphMatch.matched_skills.length + graphMatch.missing_skills.length;
   return (
-    <div className="flex flex-col gap-6" style={{ animation: 'fadeIn 0.4s ease-out' }}>
+    <div className="flex flex-col gap-6 animate-fade-in-up">
       <MatchScoreCard
         match_score={graphMatch.match_score}
         matched_skills={graphMatch.matched_skills}
@@ -297,18 +301,19 @@ export default function InsightsPage() {
         <div className="mb-8">
           <button
             onClick={() => router.back()}
-            className="inline-flex items-center gap-1 text-accent-blue text-sm hover:underline mb-4"
+            className="inline-flex items-center gap-1 text-text-secondary text-sm hover:text-text-primary transition-colors mb-5"
           >
             <ChevronLeft className="w-4 h-4" />
             Back
           </button>
-          <h1
-            className="text-text-primary font-semibold text-2xl"
-            style={{ fontFamily: 'DM Sans, sans-serif' }}
-          >
+          <div className="inline-flex items-center gap-1.5 mb-3 px-2.5 py-1 rounded-full border border-accent-green/30 bg-accent-green/5 text-accent-green text-xs font-mono">
+            <Sparkles size={11} />
+            AI Analysis
+          </div>
+          <h1 className="text-text-primary font-bold text-3xl tracking-tight">
             Skill Gap Insights
           </h1>
-          <p className="text-text-secondary text-sm font-mono mt-1">
+          <p className="text-text-secondary text-sm mt-1.5">
             AI-powered analysis of your resume vs this role
           </p>
         </div>
@@ -321,7 +326,7 @@ export default function InsightsPage() {
           </div>
         )}
 
-        {/* Live pipeline UI (only shown when running the pipeline, not on cache hit) */}
+        {/* Live pipeline UI */}
         {!loadingCache && runningPipeline && (
           <>
             <StepTracker current={step} error={errorMsg !== null} />
@@ -336,25 +341,18 @@ export default function InsightsPage() {
 
         {/* Error banner */}
         {errorMsg && (
-          <div
-            className="flex items-center justify-between gap-4 rounded-lg px-4 py-3 mb-8 border"
-            style={{
-              backgroundColor: 'rgb(240 96 96 / 0.08)',
-              borderColor: 'rgb(240 96 96 / 0.3)',
-            }}
-          >
-            <span className="text-[#F06060] text-sm font-mono">
-              Analysis failed: {errorMsg}
-            </span>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl px-4 py-3 mb-8 border bg-accent-red/5 border-accent-red/30">
+            <div className="flex items-start gap-2 min-w-0">
+              <AlertCircle size={16} className="text-accent-red shrink-0 mt-0.5" />
+              <span className="text-accent-red text-sm font-mono wrap-break-word">
+                Analysis failed: {errorMsg}
+              </span>
+            </div>
             <button
               onClick={handleRetry}
-              className="shrink-0 px-3 py-1.5 rounded text-xs font-mono font-medium transition-colors"
-              style={{
-                backgroundColor: 'rgb(240 96 96 / 0.15)',
-                color: '#F06060',
-                border: '1px solid rgb(240 96 96 / 0.3)',
-              }}
+              className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-mono font-medium transition-colors bg-accent-red/15 text-accent-red border border-accent-red/30 hover:bg-accent-red/25"
             >
+              <RotateCw size={11} />
               Retry
             </button>
           </div>
@@ -373,13 +371,6 @@ export default function InsightsPage() {
           <ResultPanels graphMatch={graphMatch} counterfactual={counterfactual} />
         )}
       </div>
-
-      <style>{`
-        @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(8px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-      `}</style>
     </div>
   );
 }

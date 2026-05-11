@@ -2,6 +2,7 @@
 
 import { useEffect, useState, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
+import { Loader2 } from 'lucide-react';
 import api from '@/lib/api';
 import { useToast } from '@/hooks/useToast';
 
@@ -25,8 +26,9 @@ export function AdminGuard({ children }: { children: ReactNode }) {
 
   if (!verified) {
     return (
-      <div className="min-h-screen bg-bg-base flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-accent-green border-t-transparent rounded-full animate-spin" />
+      <div className="min-h-screen bg-bg-base flex flex-col items-center justify-center gap-3">
+        <Loader2 className="w-6 h-6 animate-spin text-accent-green" />
+        <p className="text-text-muted font-mono text-xs">Verifying access…</p>
       </div>
     );
   }

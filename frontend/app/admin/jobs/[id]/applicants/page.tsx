@@ -3,7 +3,13 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ChevronLeft, Users, Pencil, Download } from 'lucide-react';
+import {
+  ChevronLeft,
+  Users,
+  Pencil,
+  Download,
+  ArrowRight,
+} from 'lucide-react';
 import api from '@/lib/api';
 import { AdminGuard } from '@/components/AdminGuard';
 import { useToast } from '@/hooks/useToast';
@@ -36,7 +42,7 @@ function formatDate(dateStr: string): string {
 function ScoreBadge({ score }: { score: number | null }) {
   if (score === null) {
     return (
-      <span className="font-mono text-xs px-2 py-0.5 rounded-full bg-bg-elevated border border-border-dim text-text-muted">
+      <span className="font-mono text-xs px-2.5 py-0.5 rounded-full bg-bg-elevated border border-border-dim text-text-muted">
         Pending
       </span>
     );
@@ -45,10 +51,10 @@ function ScoreBadge({ score }: { score: number | null }) {
     score >= 70
       ? 'bg-accent-green/10 border-accent-green/30 text-accent-green'
       : score >= 40
-      ? 'bg-[#F5A623]/10 border-[#F5A623]/30 text-[#F5A623]'
+      ? 'bg-accent-amber/10 border-accent-amber/30 text-accent-amber'
       : 'bg-accent-red/10 border-accent-red/30 text-accent-red';
   return (
-    <span className={`font-mono text-xs px-2 py-0.5 rounded-full border ${color}`}>
+    <span className={`font-mono text-xs font-semibold px-2.5 py-0.5 rounded-full border ${color}`}>
       {score.toFixed(1)}%
     </span>
   );
@@ -56,13 +62,13 @@ function ScoreBadge({ score }: { score: number | null }) {
 
 function StatusBadge({ status }: { status: string }) {
   const styles: Record<string, string> = {
-    pending: 'bg-[#F5A623]/10 border-[#F5A623]/30 text-[#F5A623]',
+    pending: 'bg-accent-amber/10 border-accent-amber/30 text-accent-amber',
     interview: 'bg-accent-green/10 border-accent-green/30 text-accent-green',
     rejected: 'bg-accent-red/10 border-accent-red/30 text-accent-red',
   };
   const cls = styles[status] ?? 'bg-bg-elevated border-border-dim text-text-muted';
   return (
-    <span className={`font-mono text-xs px-2 py-0.5 rounded-full border capitalize ${cls}`}>
+    <span className={`font-mono text-xs px-2.5 py-0.5 rounded-full border capitalize ${cls}`}>
       {status}
     </span>
   );
@@ -140,26 +146,33 @@ export default function JobApplicantsPage() {
               Back to Admin
             </Link>
 
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                {jobLoading ? (
-                  <div className="space-y-2">
-                    <div className="h-7 w-56 bg-bg-elevated rounded animate-pulse" />
-                    <div className="h-4 w-32 bg-bg-elevated rounded animate-pulse" />
-                  </div>
-                ) : job ? (
-                  <>
-                    <h1 className="text-text-primary font-bold text-2xl">{job.title}</h1>
-                    <p className="text-text-secondary text-sm mt-1">{job.company}</p>
-                  </>
-                ) : (
-                  <p className="text-text-muted">Job not found.</p>
-                )}
+            <div className="flex items-start justify-between gap-4 flex-wrap">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-10 h-10 rounded-lg bg-accent-blue/10 border border-accent-blue/30 flex items-center justify-center shrink-0">
+                  <Users size={18} className="text-accent-blue" />
+                </div>
+                <div className="min-w-0">
+                  {jobLoading ? (
+                    <div className="space-y-2">
+                      <div className="h-7 w-56 bg-bg-elevated rounded animate-pulse" />
+                      <div className="h-4 w-32 bg-bg-elevated rounded animate-pulse" />
+                    </div>
+                  ) : job ? (
+                    <>
+                      <h1 className="text-text-primary font-bold text-2xl tracking-tight truncate">
+                        {job.title}
+                      </h1>
+                      <p className="text-text-secondary text-sm mt-0.5">{job.company}</p>
+                    </>
+                  ) : (
+                    <p className="text-text-muted">Job not found.</p>
+                  )}
+                </div>
               </div>
               {job && (
                 <Link
                   href={`/admin/jobs/${id}`}
-                  className="inline-flex items-center gap-1.5 text-sm text-text-secondary border border-border-dim rounded-lg px-3 py-2 hover:border-border-bright hover:text-text-primary transition-colors shrink-0"
+                  className="inline-flex items-center gap-1.5 text-sm text-text-secondary border border-border-dim rounded-lg px-3 py-2 hover:border-accent-amber/30 hover:text-accent-amber transition-all shrink-0"
                 >
                   <Pencil size={14} />
                   Edit Job
@@ -169,7 +182,7 @@ export default function JobApplicantsPage() {
           </div>
 
           {/* Applicants table */}
-          <div className="bg-bg-surface border border-border-dim rounded-xl overflow-hidden">
+          <div className="bg-bg-surface border border-border-dim rounded-2xl overflow-hidden shadow-soft">
             <div className="flex items-center justify-between px-6 py-4 border-b border-border-dim">
               <h2 className="text-text-primary font-semibold text-base">
                 Applicant Rankings
@@ -196,7 +209,7 @@ export default function JobApplicantsPage() {
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead>
+                  <thead className="bg-bg-elevated/50">
                     <tr className="border-b border-border-dim">
                       {['Rank', 'Candidate', 'Match Score', 'Status', 'Applied', 'Insights', 'Resume', 'Actions'].map(
                         (col) => (
@@ -214,43 +227,46 @@ export default function JobApplicantsPage() {
                     {applicants.map((applicant, idx) => (
                       <tr
                         key={applicant.application_id}
-                        className="border-b border-border-dim last:border-0 hover:bg-bg-elevated transition-colors"
+                        className="border-b border-border-dim last:border-0 hover:bg-bg-elevated/40 transition-colors"
                       >
-                        <td className="px-4 py-3 text-text-muted font-mono text-xs">
-                          #{idx + 1}
+                        <td className="px-4 py-3.5">
+                          <span className="inline-flex items-center justify-center w-7 h-7 rounded-md bg-bg-elevated border border-border-dim text-text-muted font-mono text-xs font-semibold">
+                            {idx + 1}
+                          </span>
                         </td>
-                        <td className="px-4 py-3 text-text-primary">
+                        <td className="px-4 py-3.5 text-text-primary">
                           {applicant.candidate_email}
                         </td>
-                        <td className="px-4 py-3">
+                        <td className="px-4 py-3.5">
                           <ScoreBadge score={applicant.match_score} />
                         </td>
-                        <td className="px-4 py-3">
+                        <td className="px-4 py-3.5">
                           <StatusBadge status={applicant.status} />
                         </td>
-                        <td className="px-4 py-3 text-text-muted font-mono text-xs whitespace-nowrap">
+                        <td className="px-4 py-3.5 text-text-muted font-mono text-xs whitespace-nowrap">
                           {formatDate(applicant.applied_at)}
                         </td>
-                        <td className="px-4 py-3">
+                        <td className="px-4 py-3.5">
                           <Link
                             href={`/insights/${applicant.application_id}?job_id=${id}&resume_id=${applicant.resume_id}`}
-                            className="text-accent-blue text-xs hover:underline whitespace-nowrap"
+                            className="inline-flex items-center gap-1 text-accent-blue text-xs hover:underline whitespace-nowrap"
                           >
-                            View Insights →
+                            View Insights
+                            <ArrowRight size={11} />
                           </Link>
                         </td>
-                        <td className="px-4 py-3">
+                        <td className="px-4 py-3.5">
                           <button
                             onClick={() => handleDownloadResume(applicant.resume_id)}
                             disabled={downloadingId === applicant.resume_id}
                             title="Download Resume"
-                            className="flex items-center gap-1 text-accent-blue border border-accent-blue/40 hover:bg-accent-blue/10 hover:border-accent-blue/70 transition-colors text-xs px-2 py-1 rounded disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
+                            className="inline-flex items-center gap-1 text-accent-blue/90 border border-accent-blue/30 hover:bg-accent-blue/10 hover:border-accent-blue/60 hover:text-accent-blue transition-colors text-xs px-2.5 py-1 rounded-md disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
                           >
                             <Download className="w-3.5 h-3.5" />
                             Download
                           </button>
                         </td>
-                        <td className="px-4 py-3">
+                        <td className="px-4 py-3.5">
                           <div className="flex gap-1.5">
                             <button
                               onClick={() =>
@@ -263,7 +279,7 @@ export default function JobApplicantsPage() {
                               className={`text-xs px-2.5 py-1 rounded-md border font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
                                 applicant.status === 'interview'
                                   ? 'bg-accent-green/25 border-accent-green/60 text-accent-green'
-                                  : 'bg-accent-green/10 border-accent-green/35 text-accent-green hover:bg-accent-green/20 hover:border-accent-green/60'
+                                  : 'bg-accent-green/10 border-accent-green/30 text-accent-green hover:bg-accent-green/20 hover:border-accent-green/60'
                               }`}
                             >
                               Interview
@@ -279,7 +295,7 @@ export default function JobApplicantsPage() {
                               className={`text-xs px-2.5 py-1 rounded-md border font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
                                 applicant.status === 'rejected'
                                   ? 'bg-accent-red/25 border-accent-red/60 text-accent-red'
-                                  : 'bg-accent-red/10 border-accent-red/35 text-accent-red hover:bg-accent-red/20 hover:border-accent-red/60'
+                                  : 'bg-accent-red/10 border-accent-red/30 text-accent-red hover:bg-accent-red/20 hover:border-accent-red/60'
                               }`}
                             >
                               Reject

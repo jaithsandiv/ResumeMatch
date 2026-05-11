@@ -1,6 +1,7 @@
 'use client';
 
 import { KeyboardEvent, useRef } from 'react';
+import { X } from 'lucide-react';
 
 interface SkillsTagInputProps {
   skills: string[];
@@ -37,13 +38,13 @@ export function SkillsTagInput({ skills, onChange }: SkillsTagInputProps) {
 
   return (
     <div
-      className="flex flex-wrap gap-1.5 items-center bg-bg-elevated border border-border-dim rounded-lg px-3 py-2 min-h-[2.75rem] focus-within:border-border-bright transition-colors cursor-text"
+      className="flex flex-wrap gap-1.5 items-center bg-bg-elevated border border-border-dim rounded-lg px-3 py-2 min-h-11 focus-within:border-accent-green/60 focus-within:bg-bg-elevated transition-all cursor-text"
       onClick={() => inputRef.current?.focus()}
     >
       {skills.map((skill) => (
         <span
           key={skill}
-          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-[#00E5A0]/30 bg-[#00E5A0]/10 text-accent-green font-mono text-xs shrink-0"
+          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full border border-accent-green/30 bg-accent-green/10 text-accent-green font-mono text-xs shrink-0 transition-colors hover:bg-accent-green/15"
         >
           {skill}
           <button
@@ -52,9 +53,10 @@ export function SkillsTagInput({ skills, onChange }: SkillsTagInputProps) {
               e.stopPropagation();
               onChange(skills.filter((s) => s !== skill));
             }}
-            className="text-accent-green/70 hover:text-accent-green transition-colors leading-none ml-0.5"
+            className="text-accent-green/70 hover:text-accent-green transition-colors leading-none ml-0.5 rounded-full hover:bg-accent-green/20 p-0.5"
+            aria-label={`Remove ${skill}`}
           >
-            ×
+            <X size={10} />
           </button>
         </span>
       ))}
@@ -64,7 +66,7 @@ export function SkillsTagInput({ skills, onChange }: SkillsTagInputProps) {
         onKeyDown={handleKeyDown}
         onBlur={handleBlur}
         placeholder={skills.length === 0 ? 'Type a skill and press Enter…' : ''}
-        className="flex-1 min-w-[8rem] bg-transparent font-mono text-sm text-text-primary placeholder:text-text-muted outline-none"
+        className="flex-1 min-w-32 bg-transparent font-mono text-sm text-text-primary placeholder:text-text-muted outline-none py-0.5"
       />
     </div>
   );

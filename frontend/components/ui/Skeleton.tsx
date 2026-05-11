@@ -1,4 +1,4 @@
-const BASE = 'animate-pulse bg-bg-elevated rounded';
+const BASE = 'skeleton-shimmer rounded';
 
 export function Skeleton({ className = '' }: { className?: string }) {
   return <div className={`${BASE} ${className}`} />;
@@ -6,7 +6,7 @@ export function Skeleton({ className = '' }: { className?: string }) {
 
 export function SkeletonJobCard() {
   return (
-    <div className="bg-bg-surface border border-border-dim rounded-lg p-5 space-y-3">
+    <div className="bg-bg-surface border border-border-dim rounded-xl p-5 space-y-3.5">
       <div className="flex items-start justify-between gap-3">
         <Skeleton className="h-5 w-3/5" />
         <Skeleton className="h-5 w-14 rounded-full" />
@@ -16,10 +16,10 @@ export function SkeletonJobCard() {
         <Skeleton className="h-3 w-16" />
       </div>
       <div className="flex flex-wrap gap-1.5">
-        <Skeleton className="h-5 w-14" />
-        <Skeleton className="h-5 w-20" />
-        <Skeleton className="h-5 w-12" />
-        <Skeleton className="h-5 w-16" />
+        <Skeleton className="h-5 w-14 rounded-full" />
+        <Skeleton className="h-5 w-20 rounded-full" />
+        <Skeleton className="h-5 w-12 rounded-full" />
+        <Skeleton className="h-5 w-16 rounded-full" />
       </div>
       <div className="flex items-center justify-between pt-1">
         <Skeleton className="h-3 w-20" />
@@ -31,8 +31,8 @@ export function SkeletonJobCard() {
 
 export function SkeletonProfileStat() {
   return (
-    <div className="bg-bg-surface border border-border-dim rounded-lg p-4 flex flex-col items-center gap-2">
-      <Skeleton className="h-7 w-12" />
+    <div className="bg-bg-surface border border-border-dim rounded-xl p-4 flex flex-col items-center gap-2">
+      <Skeleton className="h-8 w-12" />
       <Skeleton className="h-3 w-24" />
     </div>
   );

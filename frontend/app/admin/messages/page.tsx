@@ -3,7 +3,14 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import * as Dialog from '@radix-ui/react-dialog';
-import { ArrowLeft, MailOpen, MailQuestion, Trash2, Inbox } from 'lucide-react';
+import {
+  ArrowLeft,
+  MailOpen,
+  MailQuestion,
+  Trash2,
+  Inbox,
+  Loader2,
+} from 'lucide-react';
 import api from '@/lib/api';
 import { AdminGuard } from '@/components/AdminGuard';
 import { useToast } from '@/hooks/useToast';
@@ -101,31 +108,39 @@ export default function AdminMessagesPage() {
   return (
     <AdminGuard>
       <div className="min-h-screen bg-bg-base">
-        <div className="bg-bg-surface border-b border-border-dim px-6 py-4">
+        <div className="bg-bg-surface border-b border-border-dim px-6 py-5">
           <div className="max-w-6xl mx-auto flex items-center gap-4">
             <button
               onClick={() => router.push('/admin')}
-              className="text-text-muted hover:text-text-secondary transition-colors"
+              className="text-text-muted hover:text-text-primary p-1.5 rounded-md hover:bg-bg-elevated transition-colors"
+              aria-label="Back to admin"
             >
               <ArrowLeft size={18} />
             </button>
-            <h1 className="text-text-primary font-bold text-xl">Contact Submissions</h1>
-            <span className="bg-[#00E5A0]/10 border border-[#00E5A0]/30 text-accent-green font-mono text-xs px-2.5 py-1 rounded-full">
-              System Administrator
-            </span>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-accent-blue/10 border border-accent-blue/30 flex items-center justify-center">
+                <Inbox size={18} className="text-accent-blue" />
+              </div>
+              <div>
+                <h1 className="text-text-primary font-bold text-xl tracking-tight">Contact Submissions</h1>
+                <p className="text-text-muted text-xs font-mono mt-0.5">System Administrator</p>
+              </div>
+            </div>
           </div>
         </div>
 
         <div className="max-w-6xl mx-auto px-6 py-8">
-          <div className="grid grid-cols-2 gap-4 mb-8 max-w-xs">
-            <div className="bg-bg-elevated border border-border-dim rounded-lg px-5 py-4">
-              <div className="font-mono text-accent-green text-2xl font-bold mb-0.5">
+          <div className="grid grid-cols-2 gap-4 mb-8 max-w-md">
+            <div className="bg-bg-surface border border-border-dim rounded-xl px-5 py-4">
+              <Inbox size={14} className="text-accent-blue mb-2" />
+              <div className="font-mono text-text-primary text-2xl font-bold">
                 {loading ? '—' : messages.length}
               </div>
               <div className="text-text-muted text-xs uppercase font-mono tracking-wider">Total</div>
             </div>
-            <div className="bg-bg-elevated border border-border-dim rounded-lg px-5 py-4">
-              <div className="font-mono text-accent-amber text-2xl font-bold mb-0.5">
+            <div className="bg-bg-surface border border-border-dim rounded-xl px-5 py-4">
+              <MailQuestion size={14} className="text-accent-amber mb-2" />
+              <div className="font-mono text-text-primary text-2xl font-bold">
                 {loading ? '—' : unreadCount}
               </div>
               <div className="text-text-muted text-xs uppercase font-mono tracking-wider">Unread</div>
@@ -141,7 +156,7 @@ export default function AdminMessagesPage() {
                 className={`px-4 py-1.5 rounded-lg border font-mono text-xs uppercase tracking-wider transition-colors ${
                   filter === f
                     ? 'bg-accent-green text-bg-base border-accent-green font-semibold'
-                    : 'bg-bg-elevated border-border-dim text-text-muted hover:border-border-bright'
+                    : 'bg-bg-surface border-border-dim text-text-muted hover:border-border-bright hover:text-text-primary'
                 }`}
               >
                 {f}
@@ -149,7 +164,7 @@ export default function AdminMessagesPage() {
             ))}
           </div>
 
-          <div className="bg-bg-surface border border-border-dim rounded-xl overflow-hidden">
+          <div className="bg-bg-surface border border-border-dim rounded-2xl overflow-hidden shadow-soft">
             {loading ? (
               <div className="p-6 space-y-3">
                 {Array.from({ length: 4 }).map((_, i) => (
@@ -171,8 +186,11 @@ export default function AdminMessagesPage() {
                 {visible.map((m) => (
                   <li
                     key={m.id}
-                    className={`transition-colors ${m.read ? '' : 'bg-bg-elevated/40'}`}
+                    className={`transition-colors relative ${m.read ? '' : 'bg-accent-amber/2'}`}
                   >
+                    {!m.read && (
+                      <div className="absolute left-0 top-0 bottom-0 w-1 bg-accent-amber" />
+                    )}
                     <div
                       role="button"
                       tabIndex={0}
@@ -183,7 +201,7 @@ export default function AdminMessagesPage() {
                           setActiveMessage(m);
                         }
                       }}
-                      className="px-6 py-5 cursor-pointer hover:bg-bg-elevated/60 focus:bg-bg-elevated/60 focus:outline-none transition-colors"
+                      className="px-6 py-5 cursor-pointer hover:bg-bg-elevated/40 focus:bg-bg-elevated/40 focus:outline-none transition-colors"
                     >
                       <div className="flex items-start justify-between gap-4 mb-2">
                         <div className="min-w-0">
@@ -202,31 +220,31 @@ export default function AdminMessagesPage() {
                             {formatDateTime(m.submitted_at)}
                           </div>
                         </div>
-                        <div className="flex items-center gap-3 shrink-0">
+                        <div className="flex items-center gap-1 shrink-0">
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
                               handleToggleRead(m);
                             }}
                             disabled={togglingId === m.id}
-                            className="text-text-muted hover:text-text-secondary transition-colors disabled:opacity-50"
+                            className="p-1.5 rounded-md text-text-muted hover:text-text-primary hover:bg-bg-elevated transition-colors disabled:opacity-50"
                             title={m.read ? 'Mark as unread' : 'Mark as read'}
                           >
-                            {m.read ? <MailQuestion size={16} /> : <MailOpen size={16} />}
+                            {m.read ? <MailQuestion size={15} /> : <MailOpen size={15} />}
                           </button>
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
                               setMessageToDelete(m);
                             }}
-                            className="text-text-muted hover:text-accent-red transition-colors"
+                            className="p-1.5 rounded-md text-text-muted hover:text-accent-red hover:bg-accent-red/10 transition-colors"
                             title="Delete message"
                           >
-                            <Trash2 size={16} />
+                            <Trash2 size={15} />
                           </button>
                         </div>
                       </div>
-                      <p className="text-text-secondary text-sm line-clamp-2">{m.reason}</p>
+                      <p className="text-text-secondary text-sm line-clamp-2 leading-relaxed">{m.reason}</p>
                     </div>
                   </li>
                 ))}
@@ -240,14 +258,14 @@ export default function AdminMessagesPage() {
           onOpenChange={(open) => !open && setActiveMessage(null)}
         >
           <Dialog.Portal>
-            <Dialog.Overlay className="fixed inset-0 bg-black/60 z-40" />
-            <Dialog.Content className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-lg max-h-[85vh] overflow-y-auto bg-bg-surface border border-border-dim rounded-xl p-6 shadow-xl focus:outline-none">
+            <Dialog.Overlay className="fixed inset-0 bg-black/70 backdrop-blur-sm z-40 animate-fade-in" />
+            <Dialog.Content className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-lg max-h-[85vh] overflow-y-auto bg-bg-surface border border-border-dim rounded-2xl p-6 shadow-elevated focus:outline-none animate-fade-in-up">
               <div className="flex items-start justify-between gap-4 mb-4">
                 <div className="min-w-0">
                   <Dialog.Title className="text-text-primary font-semibold text-lg">
                     {activeMessage?.name || 'Contact submission'}
                   </Dialog.Title>
-                  <Dialog.Description className="text-text-secondary text-sm mt-0.5 break-all">
+                  <Dialog.Description className="text-text-secondary text-sm mt-0.5 wrap-break-word">
                     {activeMessage?.contact_info}
                   </Dialog.Description>
                 </div>
@@ -259,13 +277,13 @@ export default function AdminMessagesPage() {
               </div>
 
               <div className="grid grid-cols-2 gap-3 text-xs font-mono mb-5">
-                <div>
+                <div className="bg-bg-elevated border border-border-dim rounded-lg px-3 py-2.5">
                   <div className="text-text-muted uppercase tracking-wider mb-1">Submitted</div>
                   <div className="text-text-secondary">
                     {activeMessage ? formatDateTime(activeMessage.submitted_at) : '—'}
                   </div>
                 </div>
-                <div>
+                <div className="bg-bg-elevated border border-border-dim rounded-lg px-3 py-2.5">
                   <div className="text-text-muted uppercase tracking-wider mb-1">Read</div>
                   <div className="text-text-secondary">
                     {activeMessage?.read
@@ -279,14 +297,14 @@ export default function AdminMessagesPage() {
                 <div className="text-text-muted uppercase tracking-wider text-xs font-mono mb-2">
                   Reason
                 </div>
-                <p className="text-text-primary text-sm whitespace-pre-wrap leading-relaxed">
+                <p className="text-text-primary text-sm whitespace-pre-wrap leading-relaxed bg-bg-elevated border border-border-dim rounded-lg p-4">
                   {activeMessage?.reason}
                 </p>
               </div>
 
               <div className="flex flex-wrap gap-3 justify-end">
                 <Dialog.Close asChild>
-                  <button className="px-4 py-2 rounded-lg border border-border-dim text-text-secondary text-sm hover:border-border-bright transition-colors">
+                  <button className="px-4 py-2 rounded-lg border border-border-dim text-text-secondary text-sm hover:border-border-bright hover:text-text-primary transition-colors">
                     Close
                   </button>
                 </Dialog.Close>
@@ -301,7 +319,7 @@ export default function AdminMessagesPage() {
                         );
                       }}
                       disabled={togglingId === activeMessage.id}
-                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg border border-border-dim text-text-secondary text-sm hover:border-border-bright transition-colors disabled:opacity-50"
+                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg border border-border-dim text-text-secondary text-sm hover:border-border-bright hover:text-text-primary transition-colors disabled:opacity-50"
                     >
                       {activeMessage.read ? (
                         <>
@@ -337,8 +355,8 @@ export default function AdminMessagesPage() {
           onOpenChange={(open) => !open && setMessageToDelete(null)}
         >
           <Dialog.Portal>
-            <Dialog.Overlay className="fixed inset-0 bg-black/60 z-40" />
-            <Dialog.Content className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-sm bg-bg-surface border border-border-dim rounded-xl p-6 shadow-xl focus:outline-none">
+            <Dialog.Overlay className="fixed inset-0 bg-black/70 backdrop-blur-sm z-40 animate-fade-in" />
+            <Dialog.Content className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-sm bg-bg-surface border border-border-dim rounded-2xl p-6 shadow-elevated focus:outline-none animate-fade-in-up">
               <Dialog.Title className="text-text-primary font-semibold text-base mb-2">
                 Delete this message?
               </Dialog.Title>
@@ -350,16 +368,23 @@ export default function AdminMessagesPage() {
               <p className="text-accent-red text-xs mb-6">This action cannot be undone.</p>
               <div className="flex gap-3 justify-end">
                 <Dialog.Close asChild>
-                  <button className="px-4 py-2 rounded-lg border border-border-dim text-text-secondary text-sm hover:border-border-bright transition-colors">
+                  <button className="px-4 py-2 rounded-lg border border-border-dim text-text-secondary text-sm hover:border-border-bright hover:text-text-primary transition-colors">
                     Cancel
                   </button>
                 </Dialog.Close>
                 <button
                   onClick={handleDelete}
                   disabled={deleting}
-                  className="px-4 py-2 rounded-lg bg-accent-red text-white text-sm font-semibold hover:brightness-110 transition-all disabled:opacity-50"
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-accent-red text-white text-sm font-semibold hover:brightness-110 transition-all disabled:opacity-50"
                 >
-                  {deleting ? 'Deleting…' : 'Delete'}
+                  {deleting ? (
+                    <>
+                      <Loader2 size={14} className="animate-spin" />
+                      Deleting…
+                    </>
+                  ) : (
+                    'Delete'
+                  )}
                 </button>
               </div>
             </Dialog.Content>

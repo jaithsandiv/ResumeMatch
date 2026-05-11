@@ -8,6 +8,7 @@ import { setToken } from '@/lib/auth';
 import { useToast } from '@/hooks/useToast';
 import Image from 'next/image';
 import { handleApiError } from '@/lib/apiError';
+import { Home, Mail, Lock, User as UserIcon, Eye, EyeOff, Loader2 } from 'lucide-react';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -16,6 +17,7 @@ export default function RegisterPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fieldError, setFieldError] = useState<'confirm' | 'all' | null>(null);
   const [loading, setLoading] = useState(false);
@@ -47,98 +49,167 @@ export default function RegisterPage() {
     }
   }
 
-  const inputClass = (highlight: boolean) =>
-    `w-full bg-bg-elevated border rounded px-3 py-2.5 text-text-primary font-mono text-sm focus:border-accent-green focus:outline-none transition-colors placeholder:text-text-muted ${
-      highlight ? 'border-accent-red' : 'border-border-dim'
+  function inputClass(highlight: boolean): string {
+    return `w-full bg-bg-elevated border rounded-lg pl-9 pr-3 py-2.5 text-text-primary text-sm focus:outline-none transition-colors placeholder:text-text-muted ${
+      highlight ? 'border-accent-red/60' : 'border-border-dim focus:border-accent-green/60'
     }`;
+  }
 
   return (
-    <main className="min-h-screen bg-bg-base flex items-center justify-center px-4">
-      <div className="w-full max-w-md bg-bg-surface border border-border-dim rounded-lg p-8">
-        <div className="mb-8 text-center">
-          <div className="flex justify-center mb-2">
-            <Image src="/logo footer.svg" width={144} height={144} alt="ResumeMatch" />
-          </div>
-          <h1 className="mt-2 text-2xl font-semibold text-text-primary font-sans">Create account</h1>
-          <p className="mt-1 text-sm text-text-secondary">Start matching your resume today</p>
+    <main className="min-h-screen bg-bg-base flex items-center justify-center px-4 py-12 relative overflow-hidden">
+      <div
+        aria-hidden="true"
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          background:
+            'radial-gradient(ellipse 60% 50% at 50% 0%, rgba(0, 229, 160, 0.08), transparent 60%), radial-gradient(ellipse 50% 40% at 50% 100%, rgba(79, 142, 247, 0.06), transparent 60%)',
+        }}
+      />
+
+      <div className="w-full max-w-md relative animate-fade-in-up">
+        <div className="flex justify-end mb-3">
+          <Link
+            href="/"
+            className="inline-flex items-center gap-1.5 text-text-muted hover:text-text-secondary text-xs font-mono transition-colors px-2 py-1 rounded hover:bg-bg-surface"
+          >
+            <Home size={13} />
+            Homepage
+          </Link>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-5">
-          <div>
-            <label className="block text-xs uppercase tracking-wider font-mono text-text-secondary mb-1.5">
-              Full Name
-            </label>
-            <input
-              type="text"
-              value={name}
-              onChange={e => setName(e.target.value)}
-              required
-              placeholder="Jane Doe"
-              className={inputClass(fieldError === 'all')}
-            />
+        <div className="bg-bg-surface border border-border-dim rounded-2xl p-8 shadow-elevated">
+          <div className="mb-8 text-center">
+            <div className="flex justify-center mb-3">
+              <Image src="/logo footer.svg" width={120} height={120} alt="ResumeMatch" priority />
+            </div>
+            <h1 className="text-2xl font-bold text-text-primary tracking-tight">Create your account</h1>
+            <p className="mt-1.5 text-sm text-text-secondary">Start matching your resume today</p>
           </div>
 
-          <div>
-            <label className="block text-xs uppercase tracking-wider font-mono text-text-secondary mb-1.5">
-              Email
-            </label>
-            <input
-              type="email"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              required
-              placeholder="you@example.com"
-              className={inputClass(fieldError === 'all')}
-            />
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-xs uppercase tracking-wider font-mono text-text-secondary mb-2">
+                Full Name
+              </label>
+              <div className="relative">
+                <UserIcon
+                  size={14}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none"
+                />
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  required
+                  placeholder="Jane Doe"
+                  className={inputClass(fieldError === 'all')}
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs uppercase tracking-wider font-mono text-text-secondary mb-2">
+                Email
+              </label>
+              <div className="relative">
+                <Mail
+                  size={14}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none"
+                />
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  placeholder="you@example.com"
+                  className={inputClass(fieldError === 'all')}
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs uppercase tracking-wider font-mono text-text-secondary mb-2">
+                Password
+              </label>
+              <div className="relative">
+                <Lock
+                  size={14}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none"
+                />
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  placeholder="••••••••"
+                  className={`${inputClass(fieldError === 'all')} pr-10`}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-secondary p-1 rounded transition-colors"
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs uppercase tracking-wider font-mono text-text-secondary mb-2">
+                Confirm Password
+              </label>
+              <div className="relative">
+                <Lock
+                  size={14}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none"
+                />
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={confirm}
+                  onChange={(e) => setConfirm(e.target.value)}
+                  required
+                  placeholder="••••••••"
+                  className={inputClass(fieldError === 'confirm' || fieldError === 'all')}
+                />
+              </div>
+            </div>
+
+            {error && (
+              <div className="rounded-lg border border-accent-red/30 bg-accent-red/5 px-3 py-2.5">
+                <p className="text-accent-red text-sm">{error}</p>
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-accent-green text-bg-base font-semibold py-2.5 rounded-lg hover:brightness-110 transition-all text-sm disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2 shadow-glow-green/0 hover:shadow-glow-green mt-2"
+            >
+              {loading ? (
+                <>
+                  <Loader2 size={15} className="animate-spin" />
+                  Creating account…
+                </>
+              ) : (
+                'Create account'
+              )}
+            </button>
+          </form>
+
+          <div className="my-6 flex items-center gap-3">
+            <div className="flex-1 h-px bg-border-dim" />
+            <span className="text-text-muted text-xs font-mono">or</span>
+            <div className="flex-1 h-px bg-border-dim" />
           </div>
 
-          <div>
-            <label className="block text-xs uppercase tracking-wider font-mono text-text-secondary mb-1.5">
-              Password
-            </label>
-            <input
-              type="password"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              required
-              placeholder="••••••••"
-              className={inputClass(fieldError === 'all')}
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs uppercase tracking-wider font-mono text-text-secondary mb-1.5">
-              Confirm Password
-            </label>
-            <input
-              type="password"
-              value={confirm}
-              onChange={e => setConfirm(e.target.value)}
-              required
-              placeholder="••••••••"
-              className={inputClass(fieldError === 'confirm' || fieldError === 'all')}
-            />
-          </div>
-
-          {error && (
-            <p className="text-accent-red text-sm font-mono">{error}</p>
-          )}
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-accent-green text-bg-base font-semibold py-2.5 rounded hover:bg-accent-green/90 transition font-mono text-sm disabled:opacity-60"
-          >
-            {loading ? 'Creating account…' : 'Create account'}
-          </button>
-        </form>
-
-        <p className="mt-6 text-center text-sm text-text-secondary">
-          Already have an account?{' '}
-          <Link href="/auth/login" className="text-accent-green hover:underline font-mono">
-            Sign in
-          </Link>
-        </p>
+          <p className="text-center text-sm text-text-secondary">
+            Already have an account?{' '}
+            <Link href="/auth/login" className="text-accent-green hover:underline font-medium">
+              Sign in
+            </Link>
+          </p>
+        </div>
       </div>
     </main>
   );
