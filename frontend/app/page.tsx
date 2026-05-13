@@ -64,7 +64,7 @@ export default function HomePage() {
             <span className="text-gradient-green">perfect match</span>
           </h1>
           <p className="text-text-secondary text-base max-w-xl mx-auto mb-8 leading-relaxed">
-            AI-powered skill gap analysis with explainable scoring — know exactly
+            AI-powered skill gap analysis with explainable scoring, know exactly
             where you stand and how to grow.
           </p>
           <div className="relative max-w-xl mx-auto group">
