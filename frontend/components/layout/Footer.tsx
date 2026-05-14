@@ -34,7 +34,7 @@ export function Footer() {
               </span>
             </Link>
             <p className="text-text-secondary text-sm leading-relaxed max-w-xs">
-              AI-powered skill gap analysis for every application — find your perfect match.
+              AI-powered skill gap analysis for every application, find your perfect match.
             </p>
           </div>
 
@@ -96,9 +96,7 @@ export function Footer() {
             © {year} ResumeMatch — All rights reserved
           </p>
           <p className="text-text-muted text-xs font-mono inline-flex items-center gap-1.5">
-            Built with
-            <Heart size={11} className="text-accent-red fill-accent-red" />
-            for job seekers
+            Built for job seekers
           </p>
         </div>
       </div>
