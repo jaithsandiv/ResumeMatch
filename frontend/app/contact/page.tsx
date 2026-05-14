@@ -58,13 +58,7 @@ export default function ContactPage() {
 
       <div className="max-w-xl mx-auto px-6 py-14 relative">
         <div className="flex justify-end mb-3">
-          <Link
-            href="/"
-            className="inline-flex items-center gap-1.5 text-text-muted hover:text-text-secondary text-xs font-mono transition-colors px-2 py-1 rounded hover:bg-bg-surface"
-          >
-            <Home size={13} />
-            Homepage
-          </Link>
+        
         </div>
 
         <div className="text-center mb-10">
