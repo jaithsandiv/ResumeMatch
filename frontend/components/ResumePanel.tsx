@@ -228,7 +228,7 @@ export function ResumePanel({ onResumeCountChange }: ResumePanelProps) {
     setExtractingId(resumeId);
     try {
       const { data } = await api.post('/ai/skill-extraction', { resume_id: resumeId });
-      setSkillsMap((prev) => ({ ...prev, [resumeId]: data.skills ?? [] }));
+      setSkillsMap((prev) => ({ ...prev, [resumeId]: [...new Set<string>(data.skills ?? [])] }));
       toast.success('Skills extracted');
     } catch (err) {
       handleApiError(err, toast, { fallback: 'Skill extraction failed' });

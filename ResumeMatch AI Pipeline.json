@@ -1,0 +1,422 @@
+{
+  "name": "ResumeMatch AI Pipeline (Fixed)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "resume-uploaded",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "400244ae-2f4b-4691-a216-4b8db09ab348",
+      "name": "Resume Upload Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        176,
+        336
+      ],
+      "webhookId": "8285e433-5cda-4442-86c7-16f6d451c43b"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "7f26525c-03dd-4080-93aa-d9e201c47b35",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [
+        384,
+        224
+      ],
+      "typeVersion": 1.5
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://127.0.0.1:8000/auth/login",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"email\": \"admin@example.com\", \"password\": \"AdminPass123!\" } }}",
+        "options": {}
+      },
+      "id": "56b6d27e-efe5-4e6a-8de9-71e9c6c1b39d",
+      "name": "Login",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        384,
+        432
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Resume Upload Webhook').item.json.event }}",
+                    "rightValue": "resume_uploaded",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and",
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                }
+              }
+            },
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Resume Upload Webhook').item.json.event }}",
+                    "rightValue": "job_applied",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and",
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                }
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "9e697ad4-d41d-4f38-92a7-f6df42e42a97",
+      "name": "Route by Event",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [
+        608,
+        432
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://127.0.0.1:8000/ai/skill-extraction",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $node['Login'].json['access_token'] }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"resume_id\": $('Resume Upload Webhook').item.json.data.resume_id } }}",
+        "options": {}
+      },
+      "id": "60f7b156-eee6-4dde-82b9-ccb72488d9ef",
+      "name": "Skill Extraction (resume_uploaded)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        832,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://127.0.0.1:8000/internal/resumes/access",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-N8N-SECRET",
+              "value": "d+bFHhuUB7lfxdv+P+0vfm14MxshVbZs"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"resume_id\": $('Resume Upload Webhook').item.json.data.resume_id, \"mode\": \"text\" } }}",
+        "options": {}
+      },
+      "id": "d250d02c-fc80-4156-8834-f2eeaf385e28",
+      "name": "Get Resume Access",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        832,
+        544
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://127.0.0.1:8000/ai/skill-extraction",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $node['Login'].json['access_token'] }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"resume_id\": $('Resume Upload Webhook').item.json.data.resume_id } }}",
+        "options": {}
+      },
+      "id": "b11c974d-0f8f-4470-9cc8-b1a7f66e299c",
+      "name": "Extract Skills",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        1056,
+        544
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://127.0.0.1:8000/ai/graph-match",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $node['Login'].json['access_token'] }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"job_id\": $('Resume Upload Webhook').item.json.data.job_id, \"resume_id\": $('Resume Upload Webhook').item.json.data.resume_id } }}",
+        "options": {}
+      },
+      "id": "f256377e-6bbe-4fcf-81d6-7d231eee9c8c",
+      "name": "Graph Match",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        1264,
+        544
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://127.0.0.1:8000/ai/counterfactual-analysis",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $node['Login'].json['access_token'] }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"job_id\": $('Resume Upload Webhook').item.json.data.job_id, \"resume_id\": $('Resume Upload Webhook').item.json.data.resume_id } }}",
+        "options": {}
+      },
+      "id": "c722703b-6305-4ea8-943d-7e3345edf969",
+      "name": "Counterfactual Analysis",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        1488,
+        544
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "3f4549b4-4df7-4fc4-b8ab-0a15d51d88a1",
+      "name": "Build Callback Payload",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [
+        1712,
+        544
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://127.0.0.1:8000/ai/n8n/callback",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "X-N8N-SECRET",
+              "value": "d+bFHhuUB7lfxdv+P+0vfm14MxshVbZs"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "2c46b374-17fd-4c54-8d83-1b183ad2d112",
+      "name": "Send Results to Backend",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        1936,
+        544
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Resume Upload Webhook": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Login",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Login": {
+      "main": [
+        [
+          {
+            "node": "Route by Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route by Event": {
+      "main": [
+        [
+          {
+            "node": "Skill Extraction (resume_uploaded)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get Resume Access",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Resume Access": {
+      "main": [
+        [
+          {
+            "node": "Extract Skills",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Skills": {
+      "main": [
+        [
+          {
+            "node": "Graph Match",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Graph Match": {
+      "main": [
+        [
+          {
+            "node": "Counterfactual Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Counterfactual Analysis": {
+      "main": [
+        [
+          {
+            "node": "Build Callback Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Callback Payload": {
+      "main": [
+        [
+          {
+            "node": "Send Results to Backend",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": true
+  },
+  "versionId": "c985fd58-f27f-4aee-91bd-0f74f92ada94",
+  "meta": {
+    "instanceId": "60ea975bc455bb873299faaaa2be7c2f50563f862a96ef7b8c38d754085b78a3"
+  },
+  "id": "7MEd59prlLCskXyt",
+  "tags": []
+}
